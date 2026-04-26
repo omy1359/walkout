@@ -1613,7 +1613,6 @@
     document.getElementById('comp-time').textContent = m.time;
     // 미션별로 완료 일러스트 변경
     const completeIllus = document.querySelector('#screen-complete .route-display-green');
-    // heart 미션은 기존 SVG, 나머지는 illustrations에서 가져옴
     if (currentMission === 'heart') {
       completeIllus.innerHTML = `<svg viewBox="0 0 300 140" style="width:100%;height:100%;">
         <path d="M150,110 C80,80 30,55 30,30 C30,10 50,5 70,15 C90,25 110,40 150,60 C190,40 210,25 230,15 C250,5 270,10 270,30 C270,55 220,80 150,110Z"
@@ -1626,9 +1625,26 @@
         <text x="130" y="130" fill="#fbbf24" font-size="9">합류점 ★</text>
       </svg>`;
     } else {
-      // 나머지 미션은 illustrations에서 해당 SVG 사용
       completeIllus.innerHTML = illustrations[currentMission] || '';
     }
+
+    // 미션별 배지 정보 정의
+    const badgeData = {
+      dawn:   { icon: '🌙', title: '새벽 용사 배지 획득!', desc: '이른 새벽을 정복한 당신!' },
+      sunrise:{ icon: '🌅', title: '일출 사냥꾼 배지 획득!', desc: '아침 햇살과 함께 인증 성공' },
+      run:    { icon: '🏃', title: '러너 배지 획득!', desc: 'GPS로 이니셜을 완성!' },
+      heart:  { icon: '💑', title: '페어 (Pair) 배지 획득!', desc: '함께라서 완성되는 미션' },
+    };
+    const badge = badgeData[currentMission] || badgeData.heart;
+    const badgeBox = document.querySelector('#screen-complete .badge-box');
+    badgeBox.innerHTML = `
+      <div class="badge-icon">${badge.icon}</div>
+      <div>
+        <div class="badge-title">${badge.title}</div>
+        <div class="badge-desc">${badge.desc}</div>
+      </div>
+    `;
+
     showScreen('complete');
   }
 
