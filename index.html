@@ -1611,6 +1611,24 @@
     document.getElementById('comp-pts').textContent = m.pts;
     document.getElementById('comp-dist').textContent = m.dist;
     document.getElementById('comp-time').textContent = m.time;
+    // 미션별로 완료 일러스트 변경
+    const completeIllus = document.querySelector('#screen-complete .route-display-green');
+    // heart 미션은 기존 SVG, 나머지는 illustrations에서 가져옴
+    if (currentMission === 'heart') {
+      completeIllus.innerHTML = `<svg viewBox="0 0 300 140" style="width:100%;height:100%;">
+        <path d="M150,110 C80,80 30,55 30,30 C30,10 50,5 70,15 C90,25 110,40 150,60 C190,40 210,25 230,15 C250,5 270,10 270,30 C270,55 220,80 150,110Z"
+          stroke="#10b981" stroke-width="3" fill="rgba(16,185,129,0.1)" stroke-dasharray="none"/>
+        <circle cx="70" cy="15" r="5" fill="#60a5fa"/>
+        <circle cx="230" cy="15" r="5" fill="#ec4899"/>
+        <circle cx="150" cy="110" r="8" fill="#fbbf24"/>
+        <text x="62" y="8" fill="#6b7280" font-size="8">인증 완료 ✓</text>
+        <text x="218" y="8" fill="#6b7280" font-size="8">인증 완료 ✓</text>
+        <text x="130" y="130" fill="#fbbf24" font-size="9">합류점 ★</text>
+      </svg>`;
+    } else {
+      // 나머지 미션은 illustrations에서 해당 SVG 사용
+      completeIllus.innerHTML = illustrations[currentMission] || '';
+    }
     showScreen('complete');
   }
 
