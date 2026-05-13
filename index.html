@@ -949,6 +949,15 @@
   .sheet-go    { flex: 1; padding: 13px; border-radius: 14px; border: none; background: linear-gradient(135deg,#7c3aed,#9333ea); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(124,58,237,0.4); transition: transform 0.15s; }
   .sheet-go:hover { transform: translateY(-1px); }
   .sheet-dist { font-size: 11px; color: #3b82f6; font-weight: 600; margin-top: 3px; }
+  .sheet-edit-loc-btn {
+    display: block; width: 100%;
+    margin-bottom: 10px; padding: 9px;
+    border-radius: 10px; border: 1px dashed #2a2a5a;
+    background: transparent; color: #64748b;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s; text-align: center;
+  }
+  .sheet-edit-loc-btn:hover { border-color: #7c3aed; color: #a78bfa; background: rgba(124,58,237,0.08); }
   .sheet-nav-btn {
     flex: 0 0 auto; padding: 13px 14px;
     border-radius: 14px; border: none;
@@ -1344,6 +1353,7 @@
           <div class="sheet-pts" id="sheet-pts">+200P</div>
         </div>
         <div class="sheet-tags" id="sheet-tags"></div>
+        <button class="sheet-edit-loc-btn" onclick="editMissionLocation()">📌 위치 수정하기</button>
         <div class="sheet-btn-row">
           <button class="sheet-close"   onclick="hideMapBottomSheet()">닫기</button>
           <button class="sheet-nav-btn" onclick="navigateToMission()">🗺 길 안내</button>
@@ -2086,6 +2096,21 @@
   /* ── 미션 등록 위치 핀 ── */
   let pickedLat = null, pickedLng = null;
   let locModalMap = null, locModalMarker = null;
+  let _locModalMode = 'register'; // 'register' | 'edit'
+  let _locEditKeyOrId = null;
+
+  function getLocationOverrides() {
+    try { return JSON.parse(localStorage.getItem('walkout_locations') || '{}'); } catch { return {}; }
+  }
+  function saveLocationOverride(key, lat, lng) {
+    const ov = getLocationOverrides();
+    ov[key] = { lat, lng };
+    localStorage.setItem('walkout_locations', JSON.stringify(ov));
+  }
+  function _getMissionCoords(m) {
+    const ov = getLocationOverrides()[m.key];
+    return ov ? { lat: ov.lat, lng: ov.lng } : { lat: m.lat, lng: m.lng };
+  }
 
   function useGPSLocation() {
     if (!navigator.geolocation) { showToast('GPS를 지원하지 않는 브라우저예요.'); return; }
@@ -2110,52 +2135,75 @@
     );
   }
 
+  const _PIN_ICON = () => L.divIcon({
+    html: `<div style="width:32px;height:32px;background:#7c3aed;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(124,58,237,0.5);"><span style="transform:rotate(45deg);font-size:14px;">📍</span></div>`,
+    className: '', iconSize: [32,38], iconAnchor: [16,38],
+  });
+
+  function _setModalPin(lat, lng) {
+    if (locModalMarker) locModalMap.removeLayer(locModalMarker);
+    locModalMarker = L.marker([lat, lng], { icon: _PIN_ICON() }).addTo(locModalMap);
+    document.getElementById('loc-modal-tip').textContent = `선택된 위치: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    document.getElementById('loc-modal-tip').classList.add('picked');
+    document.getElementById('loc-modal-confirm').classList.add('ready');
+  }
+
   function openLocMapModal() {
     document.getElementById('loc-map-modal').classList.add('open');
     setTimeout(() => {
       const center = [pickedLat || userLat || 37.5510, pickedLng || userLng || 126.9500];
       if (!locModalMap) {
-        locModalMap = L.map('loc-modal-map', {
-          center, zoom: 15,
-          zoomControl: false,
-          attributionControl: false,
-        });
+        locModalMap = L.map('loc-modal-map', { center, zoom: 15, zoomControl: false, attributionControl: false });
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(locModalMap);
         L.control.zoom({ position: 'bottomright' }).addTo(locModalMap);
         locModalMap.on('click', e => {
-          pickedLat = e.latlng.lat;
-          pickedLng = e.latlng.lng;
-          if (locModalMarker) locModalMap.removeLayer(locModalMarker);
-          locModalMarker = L.marker([pickedLat, pickedLng], {
-            icon: L.divIcon({
-              html: `<div style="width:32px;height:32px;background:#7c3aed;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(124,58,237,0.5);"><span style="transform:rotate(45deg);font-size:14px;">📍</span></div>`,
-              className: '', iconSize: [32,38], iconAnchor: [16,38],
-            }),
-          }).addTo(locModalMap);
-          document.getElementById('loc-modal-tip').textContent = `선택된 위치: ${pickedLat.toFixed(5)}, ${pickedLng.toFixed(5)}`;
-          document.getElementById('loc-modal-tip').classList.add('picked');
-          document.getElementById('loc-modal-confirm').classList.add('ready');
+          pickedLat = e.latlng.lat; pickedLng = e.latlng.lng;
+          _setModalPin(pickedLat, pickedLng);
         });
       } else {
         locModalMap.invalidateSize();
         locModalMap.setView(center, 15);
       }
-      // 이미 선택된 위치가 있으면 핀 복원
-      if (pickedLat && !locModalMarker) {
-        locModalMarker = L.marker([pickedLat, pickedLng]).addTo(locModalMap);
-        document.getElementById('loc-modal-confirm').classList.add('ready');
+      // 이미 좌표가 있으면 핀 표시 (항상 최신 위치로 갱신)
+      if (pickedLat !== null) {
+        _setModalPin(pickedLat, pickedLng);
       }
     }, 120);
   }
 
   function closeLocMapModal() {
     document.getElementById('loc-map-modal').classList.remove('open');
+    if (_locModalMode === 'edit') {
+      _locModalMode = 'register';
+      _locEditKeyOrId = null;
+      document.querySelector('.loc-modal-header > span').textContent = '📍 지도에서 위치 선택';
+    }
   }
 
   function confirmLocMapModal() {
     if (pickedLat === null) { showToast('지도를 탭해서 위치를 선택해주세요.'); return; }
-    _showPickedBadge(`지도 위치 (${pickedLat.toFixed(5)}, ${pickedLng.toFixed(5)})`);
-    closeLocMapModal();
+
+    if (_locModalMode === 'edit' && _locEditKeyOrId) {
+      const isPreset = MAP_MISSIONS.some(x => x.key === _locEditKeyOrId);
+      if (isPreset) {
+        saveLocationOverride(_locEditKeyOrId, pickedLat, pickedLng);
+        const mName = MAP_MISSIONS.find(x => x.key === _locEditKeyOrId)?.name || '';
+        showToast(`📌 "${mName}" 위치가 업데이트됐어요!`);
+      } else {
+        const list = getMissions();
+        const idx = list.findIndex(x => x.id === _locEditKeyOrId);
+        if (idx !== -1) {
+          list[idx].lat = pickedLat; list[idx].lng = pickedLng;
+          localStorage.setItem('walkout_missions', JSON.stringify(list));
+          showToast('📌 미션 위치가 업데이트됐어요!');
+        }
+      }
+      closeLocMapModal();
+      _resetAndReinitMap();
+    } else {
+      _showPickedBadge(`지도 위치 (${pickedLat.toFixed(5)}, ${pickedLng.toFixed(5)})`);
+      closeLocMapModal();
+    }
   }
 
   function _showPickedBadge(text) {
@@ -2173,6 +2221,55 @@
     document.getElementById('loc-modal-tip').textContent = '지도를 탭하면 핀이 꽂혀요';
     document.getElementById('loc-modal-tip').classList.remove('picked');
     document.getElementById('loc-modal-confirm').classList.remove('ready');
+  }
+
+  /* ── 기존 미션 위치 편집 ── */
+  function editMissionLocation() {
+    if (!currentSheetKey) return;
+    _locModalMode = 'edit';
+    _locEditKeyOrId = currentSheetKey;
+
+    // 현재 저장된 좌표로 pickedLat/Lng 초기화
+    const preset = MAP_MISSIONS.find(x => x.key === currentSheetKey);
+    const user   = getMissions().find(x => x.id === currentSheetKey);
+    if (preset) {
+      const coords = _getMissionCoords(preset);
+      pickedLat = coords.lat; pickedLng = coords.lng;
+    } else if (user && user.lat) {
+      pickedLat = user.lat; pickedLng = user.lng;
+    } else {
+      pickedLat = null; pickedLng = null;
+    }
+    // 기존 모달 마커 초기화 (새 위치로 덮어쓸 것)
+    locModalMarker = null;
+    document.querySelector('.loc-modal-header > span').textContent = '📌 위치 수정';
+    hideMapBottomSheet();
+    openLocMapModal();
+  }
+
+  function _resetAndReinitMap() {
+    // Leaflet이면 destroy, Kakao는 컨테이너 교체로 처리
+    if (mapInstance) {
+      try { mapInstance.remove(); } catch(e) {}
+      mapInstance = null;
+    }
+    userOverlay = null;
+    locModalMarker = null;
+    _userPinKeys = new Set();
+    // 지도 컨테이너 교체 (Kakao DOM 잔여물 제거)
+    const old = document.getElementById('leaflet-map');
+    if (old) {
+      const fresh = document.createElement('div');
+      fresh.id = 'leaflet-map';
+      old.parentNode.insertBefore(fresh, old);
+      old.remove();
+      // 로딩 스피너 재삽입
+      const loading = document.createElement('div');
+      loading.className = 'map-loading'; loading.id = 'map-loading';
+      loading.innerHTML = '<div class="map-spinner"></div><span>지도 불러오는 중...</span>';
+      fresh.appendChild(loading);
+    }
+    setTimeout(() => initMap(), 150);
   }
 
   function submitMission() {
@@ -2526,9 +2623,10 @@
         level: 7,
       });
       MAP_MISSIONS.forEach(m => {
+        const c = _getMissionCoords(m);
         new kakao.maps.CustomOverlay({
           map,
-          position: new kakao.maps.LatLng(m.lat, m.lng),
+          position: new kakao.maps.LatLng(c.lat, c.lng),
           content: `<div class="l-pin" onclick="showMapBottomSheet('${m.key}')">
             <div class="l-pin-bubble" style="background:${m.color};"><span>${m.emoji}</span></div>
             <div class="l-pin-label">${m.name}</div></div>`,
@@ -2555,13 +2653,14 @@
       maxZoom: 19,
     }).addTo(map);
     MAP_MISSIONS.forEach(m => {
+      const c = _getMissionCoords(m);
       const icon = L.divIcon({
         html: `<div class="l-pin" onclick="showMapBottomSheet('${m.key}')">
           <div class="l-pin-bubble" style="background:${m.color};"><span>${m.emoji}</span></div>
           <div class="l-pin-label">${m.name}</div></div>`,
         className: '', iconSize: [60, 70], iconAnchor: [30, 58],
       });
-      L.marker([m.lat, m.lng], { icon, interactive: false }).addTo(map);
+      L.marker([c.lat, c.lng], { icon, interactive: false }).addTo(map);
     });
     map.on('click', hideMapBottomSheet);
     mapInstance = map;
@@ -2589,14 +2688,15 @@
     document.getElementById('sheet-tags').innerHTML   =
       tags.map(t => `<span class="sheet-tag">${escHtml(t)}</span>`).join('');
 
-    // 현위치와의 거리
+    // 현위치와의 거리 (override 좌표 우선)
     const distEl = document.getElementById('sheet-dist');
     if (distEl) {
-      if (userLat !== null && m.lat && m.lng) {
-        const d = _calcDist(userLat, userLng, m.lat, m.lng);
+      const coords = m.key ? _getMissionCoords(m) : { lat: m.lat, lng: m.lng };
+      if (userLat !== null && coords.lat && coords.lng) {
+        const d = _calcDist(userLat, userLng, coords.lat, coords.lng);
         distEl.textContent = d < 1 ? `📏 ${Math.round(d*1000)}m 거리` : `📏 ${d.toFixed(1)}km 거리`;
       } else {
-        distEl.textContent = '';
+        distEl.textContent = m.key ? '' : (m.lat ? '' : '📌 위치 미등록');
       }
     }
 
@@ -2726,8 +2826,9 @@
     const user   = getMissions().find(x => x.id === currentSheetKey);
     const m = preset || user;
     if (!m) return;
-    const destLat = m.lat;
-    const destLng = m.lng;
+    const coords  = preset ? _getMissionCoords(preset) : { lat: m.lat, lng: m.lng };
+    const destLat = coords.lat;
+    const destLng = coords.lng;
     if (!destLat || !destLng) { showToast('이 미션에는 지도 위치가 등록되어 있지 않아요.'); return; }
     const name = encodeURIComponent(m.name || m.nameKo || '미션');
     let url;
