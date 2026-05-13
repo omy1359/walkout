@@ -1032,6 +1032,27 @@
     font-size: 15px; cursor: pointer; line-height: 1;
   }
 
+  /* 미션 카드 위치 편집 버튼 */
+  .mission-loc-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 2px;
+  }
+  .mission-loc-edit-btn {
+    flex-shrink: 0;
+    padding: 4px 10px; border-radius: 8px;
+    border: 1px solid rgba(124,58,237,0.35);
+    background: rgba(124,58,237,0.1);
+    color: #a78bfa; font-size: 11px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .mission-loc-edit-btn:hover { background: rgba(124,58,237,0.22); }
+  .mission-loc-edit-btn.no-loc {
+    border-color: rgba(100,116,139,0.35);
+    background: transparent; color: #64748b;
+  }
+  .mission-loc-edit-btn.no-loc:hover { border-color: #7c3aed; color: #a78bfa; }
+
   /* ── 위치 선택 모달 (phone 내부 absolute) ── */
   .loc-map-modal {
     position: absolute;
@@ -2016,7 +2037,13 @@
           </div>
         </div>
         <div class="mission-meta">
-          <div class="mission-loc">📍 ${escHtml(m.location)}</div>
+          <div class="mission-loc-row">
+            <div class="mission-loc">📍 ${escHtml(m.location)}</div>
+            <button class="mission-loc-edit-btn ${m.lat?'':'no-loc'}"
+                    onclick="editMissionLocationDirect('${m.id}',event)">
+              ${m.lat ? '📌 위치수정' : '📌 위치등록'}
+            </button>
+          </div>
           <div class="mission-pts">+${m.points}P</div>
         </div>
         ${m.desc?`<div class="mission-info">${escHtml(m.desc)}</div>`:''}
@@ -2041,7 +2068,13 @@
             <div class="my-mission-pts-sm">+${m.points}P · ${TYPE_LABELS[m.type]||m.type}</div>
           </div>
         </div>
-        <span class="mission-delete-btn" onclick="deleteMission('${m.id}',event)">삭제</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="mission-loc-edit-btn ${m.lat?'':'no-loc'}"
+                  onclick="editMissionLocationDirect('${m.id}',event)">
+            ${m.lat ? '📌 수정' : '📌 위치'}
+          </button>
+          <span class="mission-delete-btn" onclick="deleteMission('${m.id}',event)">삭제</span>
+        </div>
       </div>
     `).join('');
   }
@@ -2095,7 +2128,9 @@
   /* ── 미션 등록 제출 ── */
   /* ── 미션 등록 위치 핀 ── */
   let pickedLat = null, pickedLng = null;
-  let locModalMap = null, locModalMarker = null;
+  let locModalMap = null, locModalMarker = null;       // Leaflet picker
+  let _kakaoPickerMap = null, _kakaoPickerMarker = null; // Kakao picker
+  let _pickerEngine = 'leaflet'; // 'leaflet' | 'kakao'
   let _locModalMode = 'register'; // 'register' | 'edit'
   let _locEditKeyOrId = null;
 
@@ -2140,10 +2175,18 @@
     className: '', iconSize: [32,38], iconAnchor: [16,38],
   });
 
-  function _setModalPin(lat, lng) {
-    if (locModalMarker) locModalMap.removeLayer(locModalMarker);
-    locModalMarker = L.marker([lat, lng], { icon: _PIN_ICON() }).addTo(locModalMap);
-    document.getElementById('loc-modal-tip').textContent = `선택된 위치: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  function _setPickerPin(lat, lng) {
+    if (_pickerEngine === 'kakao' && _kakaoPickerMap) {
+      if (_kakaoPickerMarker) _kakaoPickerMarker.setMap(null);
+      _kakaoPickerMarker = new kakao.maps.Marker({
+        map: _kakaoPickerMap,
+        position: new kakao.maps.LatLng(lat, lng),
+      });
+    } else if (locModalMap) {
+      if (locModalMarker) locModalMap.removeLayer(locModalMarker);
+      locModalMarker = L.marker([lat, lng], { icon: _PIN_ICON() }).addTo(locModalMap);
+    }
+    document.getElementById('loc-modal-tip').textContent = `선택됨: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     document.getElementById('loc-modal-tip').classList.add('picked');
     document.getElementById('loc-modal-confirm').classList.add('ready');
   }
@@ -2151,23 +2194,42 @@
   function openLocMapModal() {
     document.getElementById('loc-map-modal').classList.add('open');
     setTimeout(() => {
-      const center = [pickedLat || userLat || 37.5510, pickedLng || userLng || 126.9500];
-      if (!locModalMap) {
-        locModalMap = L.map('loc-modal-map', { center, zoom: 15, zoomControl: false, attributionControl: false });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(locModalMap);
-        L.control.zoom({ position: 'bottomright' }).addTo(locModalMap);
-        locModalMap.on('click', e => {
-          pickedLat = e.latlng.lat; pickedLng = e.latlng.lng;
-          _setModalPin(pickedLat, pickedLng);
-        });
+      const lat = pickedLat !== null ? pickedLat : (userLat || 37.5510);
+      const lng = pickedLng !== null ? pickedLng : (userLng || 126.9500);
+      const kakaoOK = typeof kakao !== 'undefined' && typeof kakao.maps !== 'undefined'
+                      && typeof kakao.maps.Map === 'function';
+
+      if (kakaoOK) {
+        _pickerEngine = 'kakao';
+        if (!_kakaoPickerMap) {
+          const container = document.getElementById('loc-modal-map');
+          _kakaoPickerMap = new kakao.maps.Map(container, {
+            center: new kakao.maps.LatLng(lat, lng), level: 4,
+          });
+          kakao.maps.event.addListener(_kakaoPickerMap, 'click', e => {
+            pickedLat = e.latLng.getLat(); pickedLng = e.latLng.getLng();
+            _setPickerPin(pickedLat, pickedLng);
+          });
+        } else {
+          _kakaoPickerMap.relayout();
+          _kakaoPickerMap.setCenter(new kakao.maps.LatLng(lat, lng));
+        }
       } else {
-        locModalMap.invalidateSize();
-        locModalMap.setView(center, 15);
+        _pickerEngine = 'leaflet';
+        if (!locModalMap) {
+          locModalMap = L.map('loc-modal-map', { center:[lat,lng], zoom:15, zoomControl:false, attributionControl:false });
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom:19 }).addTo(locModalMap);
+          L.control.zoom({ position:'bottomright' }).addTo(locModalMap);
+          locModalMap.on('click', e => {
+            pickedLat = e.latlng.lat; pickedLng = e.latlng.lng;
+            _setPickerPin(pickedLat, pickedLng);
+          });
+        } else {
+          locModalMap.invalidateSize();
+          locModalMap.setView([lat, lng], 15);
+        }
       }
-      // 이미 좌표가 있으면 핀 표시 (항상 최신 위치로 갱신)
-      if (pickedLat !== null) {
-        _setModalPin(pickedLat, pickedLng);
-      }
+      if (pickedLat !== null) _setPickerPin(pickedLat, pickedLng);
     }, 120);
   }
 
@@ -2199,6 +2261,9 @@
         }
       }
       closeLocMapModal();
+      renderUserMissions();
+      renderProfileMissions();
+      initPresetLocationBtns();
       _resetAndReinitMap();
     } else {
       _showPickedBadge(`지도 위치 (${pickedLat.toFixed(5)}, ${pickedLng.toFixed(5)})`);
@@ -2214,24 +2279,29 @@
   function clearPickedLocation() {
     pickedLat = null; pickedLng = null;
     document.getElementById('loc-picked-badge').style.display = 'none';
-    if (locModalMarker && locModalMap) {
-      locModalMap.removeLayer(locModalMarker);
-      locModalMarker = null;
-    }
+    if (locModalMarker && locModalMap) { locModalMap.removeLayer(locModalMarker); locModalMarker = null; }
+    if (_kakaoPickerMarker) { _kakaoPickerMarker.setMap(null); _kakaoPickerMarker = null; }
     document.getElementById('loc-modal-tip').textContent = '지도를 탭하면 핀이 꽂혀요';
     document.getElementById('loc-modal-tip').classList.remove('picked');
     document.getElementById('loc-modal-confirm').classList.remove('ready');
   }
 
-  /* ── 기존 미션 위치 편집 ── */
-  function editMissionLocation() {
-    if (!currentSheetKey) return;
-    _locModalMode = 'edit';
-    _locEditKeyOrId = currentSheetKey;
+  /* 미션 목록에서 직접 호출 (event.stopPropagation 포함) */
+  function editMissionLocationDirect(keyOrId, event) {
+    if (event) event.stopPropagation();
+    editMissionLocation(keyOrId);
+  }
 
-    // 현재 저장된 좌표로 pickedLat/Lng 초기화
-    const preset = MAP_MISSIONS.find(x => x.key === currentSheetKey);
-    const user   = getMissions().find(x => x.id === currentSheetKey);
+  /* ── 기존 미션 위치 편집 ── */
+  function editMissionLocation(keyOrId) {
+    keyOrId = keyOrId || currentSheetKey;
+    if (!keyOrId) return;
+    currentSheetKey = keyOrId;
+    _locModalMode = 'edit';
+    _locEditKeyOrId = keyOrId;
+
+    const preset = MAP_MISSIONS.find(x => x.key === keyOrId);
+    const user   = getMissions().find(x => x.id === keyOrId);
     if (preset) {
       const coords = _getMissionCoords(preset);
       pickedLat = coords.lat; pickedLng = coords.lng;
@@ -2240,21 +2310,23 @@
     } else {
       pickedLat = null; pickedLng = null;
     }
-    // 기존 모달 마커 초기화 (새 위치로 덮어쓸 것)
+    // 기존 마커 초기화 (Leaflet + Kakao 둘 다)
     locModalMarker = null;
+    if (_kakaoPickerMarker) { _kakaoPickerMarker.setMap(null); _kakaoPickerMarker = null; }
     document.querySelector('.loc-modal-header > span').textContent = '📌 위치 수정';
-    hideMapBottomSheet();
+    document.getElementById('loc-modal-tip').textContent = '지도를 탭해서 위치를 바꿔보세요';
+    if (currentSheetKey) hideMapBottomSheet();
     openLocMapModal();
   }
 
   function _resetAndReinitMap() {
-    // Leaflet이면 destroy, Kakao는 컨테이너 교체로 처리
     if (mapInstance) {
       try { mapInstance.remove(); } catch(e) {}
       mapInstance = null;
     }
     userOverlay = null;
     locModalMarker = null;
+    _kakaoPickerMap = null; _kakaoPickerMarker = null;
     _userPinKeys = new Set();
     // 지도 컨테이너 교체 (Kakao DOM 잔여물 제거)
     const old = document.getElementById('leaflet-map');
@@ -2920,11 +2992,29 @@
     toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
   }
 
+  /* ── 추천 미션 카드에 위치 편집 버튼 주입 ── */
+  function initPresetLocationBtns() {
+    MAP_MISSIONS.forEach(m => {
+      const card = document.querySelector(`.mission-card[onclick="openMissionDetail('${m.key}')"]`);
+      if (!card) return;
+      const metaDiv = card.querySelector('.mission-meta');
+      if (!metaDiv || metaDiv.querySelector('.mission-loc-edit-btn')) return;
+      const hasOv = !!getLocationOverrides()[m.key];
+      const btn = document.createElement('button');
+      btn.className = 'mission-loc-edit-btn' + (hasOv ? '' : ' no-loc');
+      btn.textContent = hasOv ? '📌 위치수정' : '📌 위치등록';
+      btn.onclick = e => editMissionLocationDirect(m.key, e);
+      metaDiv.style.flexWrap = 'wrap';
+      metaDiv.appendChild(btn);
+    });
+  }
+
   /* ── 초기화 ── */
   initIconGrid();
   updatePreview();
   renderUserMissions();
   renderProfileMissions();
+  initPresetLocationBtns();
 </script>
 </body>
 </html>
