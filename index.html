@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>워크아웃 - 위치 기반 미션 플랫폼</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -735,6 +737,179 @@
     100% { transform: scale(1);    opacity: 1; }
   }
   .pop-in { animation: popIn 0.3s ease forwards; }
+
+  /* ====== 화면 전환 페이드 ====== */
+  @keyframes screenFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .screen.active { animation: screenFadeIn 0.22s cubic-bezier(0.4,0,0.2,1) forwards; }
+
+  /* ====== 미션 카드 탭 피드백 ====== */
+  .mission-card:active { transform: scale(0.985); transition: transform 0.08s; }
+
+  /* ====== 바텀 네브 인디케이터 ====== */
+  .nav-item { position: relative; }
+  .nav-item.active::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 28px; height: 3px;
+    background: #a78bfa;
+    border-radius: 0 0 4px 4px;
+  }
+
+  /* ====== 지도 화면 ====== */
+  .map-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+  #leaflet-map {
+    width: 100%;
+    height: 100%;
+    background: #12122a;
+  }
+  /* Leaflet 다크 필터 */
+  .leaflet-tile { filter: brightness(0.88) saturate(0.7) hue-rotate(200deg); }
+
+  /* 지도 위 플로팅 검색바 */
+  .map-search-bar {
+    position: absolute;
+    top: 12px; left: 12px; right: 12px;
+    z-index: 500;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .map-search-input {
+    flex: 1;
+    background: rgba(26,26,62,0.92);
+    border: 1px solid #2a2a5a;
+    border-radius: 14px;
+    padding: 10px 14px;
+    color: #e2e8f0;
+    font-size: 13px;
+    outline: none;
+    backdrop-filter: blur(10px);
+  }
+  .map-search-input::placeholder { color: #475569; }
+  .map-my-loc-btn {
+    width: 42px; height: 42px;
+    background: rgba(26,26,62,0.92);
+    border: 1px solid #2a2a5a;
+    border-radius: 13px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; cursor: pointer;
+    backdrop-filter: blur(10px);
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+  .map-my-loc-btn:hover { background: rgba(124,58,237,0.3); }
+
+  /* 필터 칩 */
+  .map-filter-row {
+    position: absolute;
+    top: 62px; left: 12px; right: 12px;
+    z-index: 500;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .map-filter-row::-webkit-scrollbar { display: none; }
+  .map-chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px; font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    border: 1px solid #2a2a5a;
+    background: rgba(26,26,62,0.9);
+    color: #94a3b8;
+    backdrop-filter: blur(8px);
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .map-chip.active { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+
+  /* Leaflet 커스텀 핀 */
+  .l-pin {
+    display: flex; flex-direction: column; align-items: center;
+    cursor: pointer;
+  }
+  .l-pin-bubble {
+    width: 38px; height: 38px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    transition: transform 0.2s;
+  }
+  .l-pin-bubble:hover { transform: rotate(-45deg) scale(1.15); }
+  .l-pin-bubble span { transform: rotate(45deg); font-size: 16px; }
+  .l-pin-label {
+    font-size: 10px; font-weight: 700;
+    color: #fff;
+    background: rgba(0,0,0,0.6);
+    padding: 2px 7px; border-radius: 8px;
+    margin-top: 4px; white-space: nowrap;
+    backdrop-filter: blur(4px);
+  }
+  .l-user-dot {
+    width: 16px; height: 16px;
+    background: #3b82f6;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 8px rgba(59,130,246,0.25);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 4px rgba(59,130,246,0.3); }
+    50%      { box-shadow: 0 0 0 10px rgba(59,130,246,0.1); }
+  }
+
+  /* 바텀 시트 */
+  .map-bottom-sheet {
+    position: absolute;
+    bottom: -220px;
+    left: 0; right: 0;
+    background: #1a1a3e;
+    border-radius: 22px 22px 0 0;
+    border-top: 1px solid #2a2a5a;
+    padding: 10px 20px 20px;
+    z-index: 600;
+    transition: bottom 0.35s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
+  }
+  .map-bottom-sheet.open { bottom: 0; }
+  .sheet-handle {
+    width: 36px; height: 4px;
+    background: #2a2a5a; border-radius: 2px;
+    margin: 0 auto 14px;
+  }
+  .sheet-row { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .sheet-icon {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; flex-shrink: 0;
+  }
+  .sheet-name { font-size: 16px; font-weight: 700; color: #f1f5f9; }
+  .sheet-sub  { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .sheet-pts  { margin-left: auto; font-size: 18px; font-weight: 800; color: #a78bfa; flex-shrink: 0; }
+  .sheet-tags { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .sheet-tag  {
+    font-size: 11px; font-weight: 600;
+    padding: 4px 10px; border-radius: 20px;
+    background: rgba(124,58,237,0.2); color: #a78bfa;
+    border: 1px solid rgba(124,58,237,0.3);
+  }
+  .sheet-btn-row { display: flex; gap: 10px; }
+  .sheet-close { flex: 0 0 auto; padding: 13px 18px; border-radius: 14px; border: 1px solid #2a2a5a; background: transparent; color: #94a3b8; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .sheet-go    { flex: 1; padding: 13px; border-radius: 14px; border: none; background: linear-gradient(135deg,#7c3aed,#9333ea); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(124,58,237,0.4); transition: transform 0.15s; }
+  .sheet-go:hover { transform: translateY(-1px); }
 </style>
 </head>
 <body>
@@ -971,88 +1146,42 @@
       <div class="status-icons"><span>📶</span><span>🔋</span></div>
     </div>
 
-    <div class="map-container">
-      <div class="map-bg">
-        <!-- Road grid -->
-        <div class="road-h" style="top:30%"></div>
-        <div class="road-h" style="top:55%"></div>
-        <div class="road-h" style="top:75%"></div>
-        <div class="road-v" style="left:25%"></div>
-        <div class="road-v" style="left:55%"></div>
-        <div class="road-v" style="left:78%"></div>
+    <div class="map-wrapper">
+      <!-- 실제 지도 -->
+      <div id="leaflet-map"></div>
 
-        <!-- Location labels -->
-        <div style="position:absolute;top:8%;left:40%;font-size:10px;color:#3a3a6a;font-weight:600;">한양대 일원</div>
-        <div style="position:absolute;top:22%;left:48%;font-size:10px;color:#3a3a6a;font-weight:600;">도서관</div>
-        <div style="position:absolute;top:58%;left:12%;font-size:10px;color:#3a3a6a;font-weight:600;">남산</div>
-        <div style="position:absolute;top:45%;left:60%;font-size:10px;color:#3a3a6a;font-weight:600;">한강</div>
+      <!-- 플로팅 검색바 -->
+      <div class="map-search-bar">
+        <input class="map-search-input" type="text" placeholder="🔍  미션 위치 검색...">
+        <div class="map-my-loc-btn" onclick="moveToMyLocation()" title="내 위치">📍</div>
+      </div>
 
-        <!-- Mission pins -->
-        <div class="map-pin pin-purple" style="top:24%;left:45%;" onclick="openMissionDetail('dawn')">
-          <div class="pin-bubble"><span>🌙</span></div>
-          <div class="pin-label">도서관</div>
-        </div>
-        <div class="map-pin pin-orange" style="top:55%;left:15%;" onclick="openMissionDetail('sunrise')">
-          <div class="pin-bubble"><span>🌅</span></div>
-          <div class="pin-label">남산</div>
-        </div>
-        <div class="map-pin pin-green" style="top:38%;left:52%;" onclick="openMissionDetail('run')">
-          <div class="pin-bubble"><span>🏃</span></div>
-          <div class="pin-label">런닝</div>
-        </div>
-        <div class="map-pin pin-pink" style="top:42%;left:68%;" onclick="openMissionDetail('heart')">
-          <div class="pin-bubble"><span>💗</span></div>
-          <div class="pin-label">하트</div>
-        </div>
+      <!-- 필터 칩 -->
+      <div class="map-filter-row">
+        <div class="map-chip active" onclick="setMapFilter(this,'all')">전체</div>
+        <div class="map-chip" onclick="setMapFilter(this,'gps')">📍 GPS</div>
+        <div class="map-chip" onclick="setMapFilter(this,'photo')">📸 사진</div>
+        <div class="map-chip" onclick="setMapFilter(this,'run')">🏃 런닝</div>
+        <div class="map-chip" onclick="setMapFilter(this,'duo')">👥 2인</div>
+      </div>
 
-        <!-- User location -->
-        <div class="user-pin" style="position:absolute;top:50%;left:48%;"></div>
-      </div>
-    </div>
-
-    <div class="map-mission-list">
-      <div class="map-section-title">주변 미션 (4)</div>
-      <div class="map-mission-item" onclick="openMissionDetail('dawn')">
-        <div class="map-mission-left">
-          <div class="map-dot" style="background:#7c3aed;"></div>
-          <div>
-            <div class="map-mission-name">새벽 5시 도서관</div>
-            <div class="map-mission-dist">80m · 이내</div>
+      <!-- 바텀 시트 (핀 클릭 시 슬라이드 업) -->
+      <div class="map-bottom-sheet" id="map-bottom-sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-row">
+          <div class="sheet-icon" id="sheet-icon">🌙</div>
+          <div style="flex:1;min-width:0;">
+            <div class="sheet-name" id="sheet-name">새벽 5시 도서관</div>
+            <div class="sheet-sub"  id="sheet-sub">한양대학교 도서관</div>
           </div>
+          <div class="sheet-pts" id="sheet-pts">+200P</div>
         </div>
-        <div class="map-pts">+200P</div>
-      </div>
-      <div class="map-mission-item" onclick="openMissionDetail('sunrise')">
-        <div class="map-mission-left">
-          <div class="map-dot" style="background:#ea580c;"></div>
-          <div>
-            <div class="map-mission-name">썬라이즈 셀카 챌린지</div>
-            <div class="map-mission-dist">남산 · 타워일</div>
-          </div>
+        <div class="sheet-tags" id="sheet-tags"></div>
+        <div class="sheet-btn-row">
+          <button class="sheet-close" onclick="hideMapBottomSheet()">닫기</button>
+          <button class="sheet-go"   onclick="openDetailFromSheet()">자세히 보기 →</button>
         </div>
-        <div class="map-pts">+250P</div>
       </div>
-      <div class="map-mission-item" onclick="openMissionDetail('run')">
-        <div class="map-mission-left">
-          <div class="map-dot" style="background:#059669;"></div>
-          <div>
-            <div class="map-mission-name">이니셜 런닝</div>
-            <div class="map-mission-dist">2km+ · 부근</div>
-          </div>
-        </div>
-        <div class="map-pts">+180P</div>
-      </div>
-      <div class="map-mission-item" onclick="openMissionDetail('heart')">
-        <div class="map-mission-left">
-          <div class="map-dot" style="background:#db2777;"></div>
-          <div>
-            <div class="map-mission-name">릴레이 하트</div>
-            <div class="map-mission-dist">2인 협력 · 이내</div>
-          </div>
-        </div>
-        <div class="map-pts">+300P</div>
-      </div>
-      <div style="height:8px;"></div>
     </div>
 
     <div class="bottom-nav">
@@ -1518,6 +1647,9 @@
 </div>
 
 <script>
+  /* ── 카카오 API 키 (발급 후 여기에 입력) ── */
+  const KAKAO_KEY = ''; // 예: 'a1b2c3d4e5f6...'
+
   /* ── 상수 ── */
   const ICONS = ['🎯','🏃','🚶','🌅','🌙','🌊','🏔️','🌳','🏙️','🔥','⚡','💫','🗺️','📍','🏋️','🚴','🧗','🤸','🌺','🦋','🎪','🎨','📸','🎵','🏄','🧘','🌸','🍀'];
   const TYPE_LABELS = { gps:'GPS 인증', photo:'AI 사진검증', run:'GPS 패턴런닝', duo:'2인 협력 GPS' };
@@ -1996,10 +2128,125 @@
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const target = document.getElementById('screen-' + name);
     if (target) target.classList.add('active');
+    // 네브바 active 동기화
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => {
+      const txt = n.querySelector('span')?.textContent;
+      if ((name==='home'&&txt==='홈')||(name==='map'&&txt==='지도')||
+          (name==='ranking'&&txt==='랭킹')||(name==='profile'&&txt==='프로필'))
+        n.classList.add('active');
+    });
+    // 지도 화면 진입 시 초기화
+    if (name === 'map') setTimeout(initMap, 80);
   }
 
   function goBack() {
+    hideMapBottomSheet();
     showScreen(prevScreen === currentScreen ? 'home' : prevScreen);
+  }
+
+  /* ── 지도 ── */
+  let mapInstance = null;
+  let currentSheetKey = null;
+
+  const MAP_MISSIONS = [
+    { lat:37.5572, lng:126.9366, key:'dawn',    emoji:'🌙', color:'#7c3aed', name:'새벽 5시 도서관', loc:'한양대 도서관',   pts:200, tags:['GPS+시간인증','새벽 5:00~5:30'] },
+    { lat:37.5512, lng:126.9882, key:'sunrise', emoji:'🌅', color:'#ea580c', name:'썬라이즈 셀카',    loc:'남산 타워',       pts:250, tags:['AI 사진검증','일출 시간대'] },
+    { lat:37.5549, lng:126.9393, key:'run',     emoji:'🏃', color:'#059669', name:'이니셜 런닝',      loc:'내 위치 기준',    pts:180, tags:['GPS 패턴','2km 이상'] },
+    { lat:37.5172, lng:126.9065, key:'heart',   emoji:'💗', color:'#db2777', name:'릴레이 하트',      loc:'한강 공원',       pts:300, tags:['2인 협력','각 1.5km'] },
+  ];
+
+  function initMap() {
+    if (mapInstance) { mapInstance.invalidateSize(); return; }
+
+    const map = L.map('leaflet-map', {
+      center: [37.5510, 126.9500],
+      zoom: 13,
+      zoomControl: false,
+      attributionControl: false,
+    });
+
+    // 다크 테마 타일 (CartoDB Dark Matter)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+    }).addTo(map);
+
+    // 미션 핀
+    MAP_MISSIONS.forEach(m => {
+      const icon = L.divIcon({
+        html: `<div class="l-pin" onclick="showMapBottomSheet('${m.key}')">
+                 <div class="l-pin-bubble" style="background:${m.color};">
+                   <span>${m.emoji}</span>
+                 </div>
+                 <div class="l-pin-label">${m.name}</div>
+               </div>`,
+        className: '',
+        iconSize: [60, 70],
+        iconAnchor: [30, 58],
+      });
+      L.marker([m.lat, m.lng], { icon, interactive: false }).addTo(map);
+    });
+
+    // 내 위치 핀
+    const meIcon = L.divIcon({
+      html: `<div class="l-user-dot"></div>`,
+      className: '',
+      iconSize: [22, 22],
+      iconAnchor: [11, 11],
+    });
+    L.marker([37.5558, 126.9375], { icon: meIcon, interactive: false }).addTo(map);
+
+    // 지도 클릭 시 시트 닫기
+    map.on('click', hideMapBottomSheet);
+
+    mapInstance = map;
+  }
+
+  function showMapBottomSheet(key) {
+    const m = MAP_MISSIONS.find(x => x.key === key) || missionData[key];
+    if (!m) return;
+    currentSheetKey = key;
+
+    // missionData 기반 호환
+    const name  = m.name  || m.nameKo || '';
+    const loc   = m.loc   || m.location || '';
+    const pts   = m.pts   || ('+'+m.points+'P') || '';
+    const emoji = m.emoji || m.icon   || '🎯';
+    const color = m.color || 'purple';
+    const tags  = m.tags  || [m.tag1, m.tag2].filter(Boolean);
+
+    const colorBg = COLOR_BG[color] || `rgba(124,58,237,0.25)`;
+    document.getElementById('sheet-icon').textContent = emoji;
+    document.getElementById('sheet-icon').style.background = colorBg;
+    document.getElementById('sheet-name').textContent = name;
+    document.getElementById('sheet-sub').textContent  = '📍 ' + loc;
+    document.getElementById('sheet-pts').textContent  = typeof pts === 'number' ? '+'+pts+'P' : pts;
+    document.getElementById('sheet-tags').innerHTML   =
+      tags.map(t => `<span class="sheet-tag">${escHtml(t)}</span>`).join('');
+
+    document.getElementById('map-bottom-sheet').classList.add('open');
+  }
+
+  function hideMapBottomSheet() {
+    document.getElementById('map-bottom-sheet').classList.remove('open');
+  }
+
+  function openDetailFromSheet() {
+    hideMapBottomSheet();
+    if (!currentSheetKey) return;
+    if (missionData[currentSheetKey]) openMissionDetail(currentSheetKey);
+    else openUserMissionDetail(currentSheetKey);
+  }
+
+  function moveToMyLocation() {
+    if (!mapInstance) return;
+    mapInstance.flyTo([37.5558, 126.9375], 15, { animate: true, duration: 1 });
+  }
+
+  function setMapFilter(el, type) {
+    document.querySelectorAll('.map-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    // 실제 필터링은 백엔드 연동 후 확장
   }
 
   function openMissionDetail(key) {
