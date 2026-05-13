@@ -4,13 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>워크아웃 - 위치 기반 미션 플랫폼</title>
-<!-- Kakao Maps SDK -->
-<script type="text/javascript"
-  src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=39baf3943f8fdb00ae8f988f6dc87af3&autoload=false"
-  onerror="window._kakaoFailed=true"></script>
-<!-- Leaflet 폴백 (카카오 실패 시 자동 사용) -->
+<!-- Leaflet 폴백 -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Kakao Maps SDK (autoload=true, 동기 로드) -->
+<script type="text/javascript"
+  src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=39baf3943f8fdb00ae8f988f6dc87af3"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -2206,7 +2205,10 @@
       try { mapInstance.invalidateSize && mapInstance.invalidateSize(); } catch(e) {}
       return;
     }
-    const kakaoReady = !window._kakaoFailed && typeof kakao !== 'undefined';
+    // kakao.maps.Map 생성자가 실제로 존재하는지 확인
+    const kakaoReady = typeof kakao !== 'undefined' &&
+                       typeof kakao.maps !== 'undefined' &&
+                       typeof kakao.maps.Map === 'function';
     kakaoReady ? _initKakaoMap() : _initLeafletMap();
   }
 
@@ -2217,36 +2219,34 @@
 
   /* ── 카카오 지도 ── */
   function _initKakaoMap() {
-    kakao.maps.load(() => {
-      try {
-        _hideLoading();
-        const container = document.getElementById('leaflet-map');
-        const map = new kakao.maps.Map(container, {
-          center: new kakao.maps.LatLng(37.5510, 126.9500),
-          level: 7,
-        });
-        MAP_MISSIONS.forEach(m => {
-          new kakao.maps.CustomOverlay({
-            map,
-            position: new kakao.maps.LatLng(m.lat, m.lng),
-            content: `<div class="l-pin" onclick="showMapBottomSheet('${m.key}')">
-              <div class="l-pin-bubble" style="background:${m.color};"><span>${m.emoji}</span></div>
-              <div class="l-pin-label">${m.name}</div></div>`,
-            yAnchor: 1.0,
-          });
-        });
+    try {
+      _hideLoading();
+      const container = document.getElementById('leaflet-map');
+      const map = new kakao.maps.Map(container, {
+        center: new kakao.maps.LatLng(37.5510, 126.9500),
+        level: 7,
+      });
+      MAP_MISSIONS.forEach(m => {
         new kakao.maps.CustomOverlay({
           map,
-          position: new kakao.maps.LatLng(37.5558, 126.9375),
-          content: '<div class="l-user-dot"></div>',
-          yAnchor: 0.5,
+          position: new kakao.maps.LatLng(m.lat, m.lng),
+          content: `<div class="l-pin" onclick="showMapBottomSheet('${m.key}')">
+            <div class="l-pin-bubble" style="background:${m.color};"><span>${m.emoji}</span></div>
+            <div class="l-pin-label">${m.name}</div></div>`,
+          yAnchor: 1.0,
         });
-        kakao.maps.event.addListener(map, 'click', hideMapBottomSheet);
-        mapInstance = map;
-      } catch(e) {
-        _initLeafletMap(); // 카카오 실패 시 Leaflet 폴백
-      }
-    });
+      });
+      new kakao.maps.CustomOverlay({
+        map,
+        position: new kakao.maps.LatLng(37.5558, 126.9375),
+        content: '<div class="l-user-dot"></div>',
+        yAnchor: 0.5,
+      });
+      kakao.maps.event.addListener(map, 'click', hideMapBottomSheet);
+      mapInstance = map;
+    } catch(e) {
+      _initLeafletMap(); // 실패 시 자동 폴백
+    }
   }
 
   /* ── Leaflet 폴백 지도 ── */
