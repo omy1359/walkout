@@ -948,6 +948,52 @@
   .sheet-close { flex: 0 0 auto; padding: 13px 18px; border-radius: 14px; border: 1px solid #2a2a5a; background: transparent; color: #94a3b8; font-size: 14px; font-weight: 600; cursor: pointer; }
   .sheet-go    { flex: 1; padding: 13px; border-radius: 14px; border: none; background: linear-gradient(135deg,#7c3aed,#9333ea); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(124,58,237,0.4); transition: transform 0.15s; }
   .sheet-go:hover { transform: translateY(-1px); }
+  .sheet-dist { font-size: 11px; color: #3b82f6; font-weight: 600; margin-top: 3px; }
+  .sheet-nav-btn {
+    flex: 0 0 auto; padding: 13px 14px;
+    border-radius: 14px; border: none;
+    background: linear-gradient(135deg,#059669,#10b981);
+    color: #fff; font-size: 13px; font-weight: 700;
+    cursor: pointer; box-shadow: 0 4px 14px rgba(5,150,105,0.35);
+    transition: transform 0.15s; white-space: nowrap;
+  }
+  .sheet-nav-btn:hover { transform: translateY(-1px); }
+
+  /* 검색 드롭다운 */
+  .map-search-wrap { flex: 1; position: relative; min-width: 0; }
+  .map-search-wrap .map-search-input { width: 100%; box-sizing: border-box; }
+  .map-search-dropdown {
+    position: absolute;
+    top: calc(100% + 6px); left: 0; right: 0;
+    background: rgba(18,18,48,0.97);
+    border: 1px solid #2a2a5a;
+    border-radius: 14px;
+    backdrop-filter: blur(14px);
+    overflow: hidden;
+    z-index: 700;
+    display: none;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  }
+  .map-search-dropdown.open { display: block; }
+  .search-result-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .search-result-item:hover { background: rgba(124,58,237,0.18); }
+  .search-result-item + .search-result-item { border-top: 1px solid rgba(42,42,90,0.6); }
+  .sri-emoji { font-size: 20px; flex-shrink: 0; }
+  .sri-info { flex: 1; min-width: 0; }
+  .sri-name { font-size: 13px; font-weight: 700; color: #f1f5f9; }
+  .sri-loc  { font-size: 11px; color: #64748b; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sri-pts  { font-size: 13px; font-weight: 800; color: #a78bfa; flex-shrink: 0; }
+  .search-no-result { padding: 18px; text-align: center; color: #475569; font-size: 13px; }
+
+  /* GPS 버튼 상태 */
+  @keyframes locPulse { 0%,100%{background:rgba(26,26,62,0.92);} 50%{background:rgba(59,130,246,0.22);} }
+  .map-my-loc-btn.locating { animation: locPulse 0.9s infinite; }
+  .map-my-loc-btn.located  { border-color: #3b82f6; }
 </style>
 </head>
 <body>
@@ -1195,8 +1241,15 @@
 
       <!-- 플로팅 검색바 -->
       <div class="map-search-bar">
-        <input class="map-search-input" type="text" placeholder="🔍  미션 위치 검색...">
-        <div class="map-my-loc-btn" onclick="moveToMyLocation()" title="내 위치">📍</div>
+        <div class="map-search-wrap">
+          <input class="map-search-input" id="map-search-input" type="text"
+                 placeholder="🔍  미션·장소 검색..."
+                 oninput="onMapSearch(this.value)"
+                 onfocus="onMapSearch(this.value)"
+                 onblur="setTimeout(closeSearchDropdown,200)">
+          <div class="map-search-dropdown" id="map-search-dropdown"></div>
+        </div>
+        <div class="map-my-loc-btn" id="map-my-loc-btn" onclick="moveToMyLocation()" title="내 위치">📍</div>
       </div>
 
       <!-- 필터 칩 -->
@@ -1216,13 +1269,15 @@
           <div style="flex:1;min-width:0;">
             <div class="sheet-name" id="sheet-name">새벽 5시 도서관</div>
             <div class="sheet-sub"  id="sheet-sub">한양대학교 도서관</div>
+            <div class="sheet-dist" id="sheet-dist"></div>
           </div>
           <div class="sheet-pts" id="sheet-pts">+200P</div>
         </div>
         <div class="sheet-tags" id="sheet-tags"></div>
         <div class="sheet-btn-row">
-          <button class="sheet-close" onclick="hideMapBottomSheet()">닫기</button>
-          <button class="sheet-go"   onclick="openDetailFromSheet()">자세히 보기 →</button>
+          <button class="sheet-close"   onclick="hideMapBottomSheet()">닫기</button>
+          <button class="sheet-nav-btn" onclick="navigateToMission()">🗺 길 안내</button>
+          <button class="sheet-go"      onclick="openDetailFromSheet()">자세히 보기 →</button>
         </div>
       </div>
     </div>
@@ -2189,8 +2244,10 @@
   }
 
   /* ── 지도 ── */
-  let mapInstance = null;
+  let mapInstance   = null;
   let currentSheetKey = null;
+  let userLat = null, userLng = null;
+  let userOverlay = null;
 
   const MAP_MISSIONS = [
     { lat:37.5572, lng:126.9366, key:'dawn',    emoji:'🌙', color:'#7c3aed', name:'새벽 5시 도서관', loc:'한양대 도서관',   pts:200, tags:['GPS+시간인증','새벽 5:00~5:30'] },
@@ -2205,11 +2262,12 @@
       try { mapInstance.invalidateSize && mapInstance.invalidateSize(); } catch(e) {}
       return;
     }
-    // kakao.maps.Map 생성자가 실제로 존재하는지 확인
     const kakaoReady = typeof kakao !== 'undefined' &&
                        typeof kakao.maps !== 'undefined' &&
                        typeof kakao.maps.Map === 'function';
-    kakaoReady ? _initKakaoMap() : _initLeafletMap();
+    if (kakaoReady) _initKakaoMap(); else _initLeafletMap();
+    // 지도 렌더 후 실제 GPS 가져오기
+    setTimeout(() => getMyLocation(), 600);
   }
 
   function _hideLoading() {
@@ -2235,12 +2293,6 @@
             <div class="l-pin-label">${m.name}</div></div>`,
           yAnchor: 1.0,
         });
-      });
-      new kakao.maps.CustomOverlay({
-        map,
-        position: new kakao.maps.LatLng(37.5558, 126.9375),
-        content: '<div class="l-user-dot"></div>',
-        yAnchor: 0.5,
       });
       kakao.maps.event.addListener(map, 'click', hideMapBottomSheet);
       mapInstance = map;
@@ -2270,10 +2322,6 @@
       });
       L.marker([m.lat, m.lng], { icon, interactive: false }).addTo(map);
     });
-    L.marker([37.5558, 126.9375], {
-      icon: L.divIcon({ html: '<div class="l-user-dot"></div>', className: '', iconSize: [22,22], iconAnchor: [11,11] }),
-      interactive: false,
-    }).addTo(map);
     map.on('click', hideMapBottomSheet);
     mapInstance = map;
   }
@@ -2300,6 +2348,17 @@
     document.getElementById('sheet-tags').innerHTML   =
       tags.map(t => `<span class="sheet-tag">${escHtml(t)}</span>`).join('');
 
+    // 현위치와의 거리
+    const distEl = document.getElementById('sheet-dist');
+    if (distEl) {
+      if (userLat !== null && m.lat && m.lng) {
+        const d = _calcDist(userLat, userLng, m.lat, m.lng);
+        distEl.textContent = d < 1 ? `📏 ${Math.round(d*1000)}m 거리` : `📏 ${d.toFixed(1)}km 거리`;
+      } else {
+        distEl.textContent = '';
+      }
+    }
+
     document.getElementById('map-bottom-sheet').classList.add('open');
   }
 
@@ -2314,14 +2373,125 @@
     else openUserMissionDetail(currentSheetKey);
   }
 
-  function moveToMyLocation() {
-    if (!mapInstance) return;
-    if (typeof kakao !== 'undefined' && mapInstance.panTo && mapInstance.setLevel) {
-      mapInstance.panTo(new kakao.maps.LatLng(37.5558, 126.9375));
-      mapInstance.setLevel(4);
+  /* ── GPS 현위치 ── */
+  function getMyLocation(onSuccess) {
+    if (!navigator.geolocation) { showToast('GPS를 지원하지 않는 브라우저예요.'); return; }
+    const btn = document.getElementById('map-my-loc-btn');
+    if (btn) btn.classList.add('locating');
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        userLat = pos.coords.latitude;
+        userLng = pos.coords.longitude;
+        if (btn) { btn.classList.remove('locating'); btn.classList.add('located'); }
+        _updateUserDot();
+        if (onSuccess) onSuccess(userLat, userLng);
+      },
+      () => {
+        if (btn) btn.classList.remove('locating');
+        if (!userLat) { userLat = 37.5558; userLng = 126.9375; }
+        _updateUserDot();
+        if (onSuccess) onSuccess(userLat, userLng);
+      },
+      { timeout: 8000, maximumAge: 30000, enableHighAccuracy: false }
+    );
+  }
+
+  function _updateUserDot() {
+    if (!mapInstance || userLat === null) return;
+    const isKakao = typeof kakao !== 'undefined' && typeof mapInstance.panTo === 'function';
+    if (isKakao) {
+      if (userOverlay) userOverlay.setMap(null);
+      userOverlay = new kakao.maps.CustomOverlay({
+        map: mapInstance,
+        position: new kakao.maps.LatLng(userLat, userLng),
+        content: '<div class="l-user-dot"></div>',
+        yAnchor: 0.5,
+      });
     } else {
-      mapInstance.flyTo([37.5558, 126.9375], 15);
+      if (userOverlay) mapInstance.removeLayer(userOverlay);
+      userOverlay = L.marker([userLat, userLng], {
+        icon: L.divIcon({ html: '<div class="l-user-dot"></div>', className: '', iconSize: [22,22], iconAnchor: [11,11] }),
+        interactive: false,
+      }).addTo(mapInstance);
     }
+  }
+
+  function moveToMyLocation() {
+    if (userLat !== null) { _flyToCoords(userLat, userLng, true); return; }
+    getMyLocation((lat, lng) => _flyToCoords(lat, lng, true));
+  }
+
+  function _flyToCoords(lat, lng, closeUp) {
+    if (!mapInstance) return;
+    const isKakao = typeof kakao !== 'undefined' && typeof mapInstance.panTo === 'function';
+    if (isKakao) {
+      mapInstance.panTo(new kakao.maps.LatLng(lat, lng));
+      if (closeUp) mapInstance.setLevel(3);
+    } else {
+      mapInstance.flyTo([lat, lng], closeUp ? 16 : mapInstance.getZoom());
+    }
+  }
+
+  /* ── 거리 계산 (Haversine, km) ── */
+  function _calcDist(lat1, lng1, lat2, lng2) {
+    const R = 6371, d2r = Math.PI / 180;
+    const dL = (lat2 - lat1) * d2r, dG = (lng2 - lng1) * d2r;
+    const a = Math.sin(dL/2)**2 + Math.cos(lat1*d2r)*Math.cos(lat2*d2r)*Math.sin(dG/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  /* ── 미션 검색 ── */
+  function onMapSearch(q) {
+    const dd = document.getElementById('map-search-dropdown');
+    q = (q || '').trim();
+    if (!q) { dd.classList.remove('open'); return; }
+    const hits = MAP_MISSIONS.filter(m =>
+      m.name.includes(q) || m.loc.includes(q) || m.tags.some(t => t.includes(q))
+    );
+    if (!hits.length) {
+      dd.innerHTML = `<div class="search-no-result">검색 결과가 없어요 🔍</div>`;
+    } else {
+      dd.innerHTML = hits.map(m => `
+        <div class="search-result-item" onclick="selectSearchResult('${m.key}')">
+          <span class="sri-emoji">${m.emoji}</span>
+          <div class="sri-info">
+            <div class="sri-name">${escHtml(m.name)}</div>
+            <div class="sri-loc">📍 ${escHtml(m.loc)}</div>
+          </div>
+          <span class="sri-pts">+${m.pts}P</span>
+        </div>`).join('');
+    }
+    dd.classList.add('open');
+  }
+
+  function closeSearchDropdown() {
+    const dd = document.getElementById('map-search-dropdown');
+    if (dd) dd.classList.remove('open');
+  }
+
+  function selectSearchResult(key) {
+    closeSearchDropdown();
+    document.getElementById('map-search-input').value = '';
+    const m = MAP_MISSIONS.find(x => x.key === key);
+    if (!m) return;
+    _flyToCoords(m.lat, m.lng, false);
+    setTimeout(() => showMapBottomSheet(key), 450);
+  }
+
+  /* ── 길 안내 ── */
+  function navigateToMission() {
+    if (!currentSheetKey) return;
+    const m = MAP_MISSIONS.find(x => x.key === currentSheetKey);
+    if (!m) return;
+    const name = encodeURIComponent(m.name);
+    let url;
+    if (userLat !== null) {
+      const from = encodeURIComponent('내 위치');
+      url = `https://map.kakao.com/link/from/${from},${userLat},${userLng}/to/${name},${m.lat},${m.lng}`;
+    } else {
+      url = `https://map.kakao.com/link/to/${name},${m.lat},${m.lng}`;
+    }
+    window.open(url, '_blank');
   }
 
   function setMapFilter(el, type) {
