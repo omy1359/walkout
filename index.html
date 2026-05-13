@@ -637,6 +637,104 @@
     white-space: nowrap;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ====== 아이콘 선택기 ====== */
+  .icon-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .icon-item {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: #1e1e40;
+    border: 2px solid transparent;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .icon-item:hover { background: #252550; transform: scale(1.08); }
+  .icon-item.selected { border-color: #7c3aed; background: rgba(124,58,237,0.2); }
+
+  /* ====== 단계 입력 ====== */
+  .step-input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .step-input-num {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: #7c3aed;
+    color: #fff;
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-remove-btn {
+    background: none; border: none;
+    color: #475569; font-size: 15px;
+    cursor: pointer; padding: 4px 6px;
+    flex-shrink: 0; transition: color 0.2s; line-height: 1;
+  }
+  .step-remove-btn:hover { color: #ef4444; }
+  .add-step-btn {
+    width: 100%; background: transparent;
+    border: 1px dashed #2a2a5a; border-radius: 10px;
+    color: #7c3aed; font-size: 13px; font-weight: 600;
+    padding: 10px; cursor: pointer; margin-top: 4px; transition: all 0.2s;
+  }
+  .add-step-btn:hover { background: rgba(124,58,237,0.1); border-color: #7c3aed; }
+
+  /* ====== 폼 에러 ====== */
+  .form-error { font-size: 11px; color: #ef4444; margin-top: 4px; display: none; }
+  .form-input.error { border-color: #ef4444 !important; }
+
+  /* ====== 미리보기 ====== */
+  .preview-section {
+    margin: 0 0 18px;
+    background: #12122a;
+    border-radius: 14px;
+    padding: 14px;
+    border: 1px solid #2a2a5a;
+  }
+  .preview-label {
+    font-size: 10px; font-weight: 700;
+    color: #475569; text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 10px;
+  }
+
+  /* ====== 내 미션 배지/삭제 ====== */
+  .my-mission-badge {
+    font-size: 10px; font-weight: 700;
+    padding: 3px 8px; border-radius: 20px;
+    background: rgba(124,58,237,0.25); color: #a78bfa;
+    border: 1px solid rgba(124,58,237,0.4);
+  }
+  .mission-delete-btn {
+    background: rgba(239,68,68,0.12);
+    border: 1px solid rgba(239,68,68,0.25);
+    color: #ef4444; font-size: 11px; font-weight: 600;
+    padding: 4px 10px; border-radius: 20px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .mission-delete-btn:hover { background: rgba(239,68,68,0.25); }
+
+  /* ====== 프로필 내 미션 리스트 ====== */
+  .my-mission-list-item {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: #12122a; border-radius: 14px;
+    margin-bottom: 8px; border: 1px solid #2a2a5a;
+    cursor: pointer; transition: background 0.2s;
+  }
+  .my-mission-list-item:hover { background: #1e1e40; }
+  .my-mission-list-left { display: flex; align-items: center; gap: 10px; }
+  .my-mission-icon-sm { font-size: 24px; }
+  .my-mission-name-sm { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+  .my-mission-pts-sm { font-size: 11px; color: #a78bfa; margin-top: 2px; }
+
+  /* ====== 등록 카드 팝인 ====== */
+  @keyframes popIn {
+    0%   { transform: scale(0.92); opacity: 0; }
+    80%  { transform: scale(1.02); }
+    100% { transform: scale(1);    opacity: 1; }
+  }
+  .pop-in { animation: popIn 0.3s ease forwards; }
 </style>
 </head>
 <body>
@@ -823,6 +921,15 @@
           <div class="mission-loc">📍 한강 공원 · 2인 협력 · 각 1.5km</div>
           <div class="mission-pts">+300P</div>
         </div>
+      </div>
+
+      <!-- 내가 만든 미션 섹션 -->
+      <div id="user-missions-section" style="display:none;">
+        <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>내가 만든 미션</span>
+          <span style="font-size:11px;font-weight:400;color:#64748b;" id="user-missions-count"></span>
+        </div>
+        <div id="user-missions-container"></div>
       </div>
 
       <!-- Add Mission Button -->
@@ -1241,6 +1348,12 @@
         </div>
       </div>
 
+      <!-- 내가 등록한 미션 -->
+      <div class="profile-section" id="profile-my-missions-section" style="margin-top:20px;display:none;">
+        <div class="profile-section-title">내가 등록한 미션</div>
+        <div id="profile-my-missions-container"></div>
+      </div>
+
       <div class="profile-section" style="margin-top:20px;">
         <div class="profile-section-title">설정</div>
         <div class="menu-item" onclick="showToast('알림 설정 페이지')">
@@ -1295,18 +1408,49 @@
     </div>
     <div class="scroll-area">
       <div class="reg-form">
+
+        <!-- 미리보기 카드 -->
+        <div class="preview-section">
+          <div class="preview-label">미션 카드 미리보기</div>
+          <div id="preview-card">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:40px;height:40px;border-radius:12px;background:rgba(124,58,237,0.25);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">🎯</div>
+              <div style="flex:1;">
+                <div style="font-size:14px;font-weight:700;color:#475569;">미션 이름</div>
+                <div style="font-size:11px;color:#475569;">📍 위치 미정</div>
+              </div>
+              <div style="font-size:13px;font-weight:700;color:#a78bfa;">+300P</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 아이콘 선택 -->
         <div class="form-group">
-          <label class="form-label">미션 이름 (한국어)</label>
-          <input class="form-input" type="text" placeholder="예: 새벽 5시 도서관" id="reg-name-ko">
+          <label class="form-label">미션 아이콘</label>
+          <div class="icon-grid" id="icon-grid"></div>
+        </div>
+
+        <!-- 미션 이름 -->
+        <div class="form-group">
+          <label class="form-label">미션 이름 <span style="color:#ef4444;">*</span></label>
+          <input class="form-input" type="text" placeholder="예: 새벽 5시 도서관" id="reg-name-ko"
+            oninput="updatePreview();clearFieldError('reg-name-ko')">
+          <div class="form-error" id="err-name-ko">미션 이름을 입력해주세요.</div>
         </div>
         <div class="form-group">
-          <label class="form-label">미션 이름 (영어)</label>
+          <label class="form-label">미션 이름 (영어 · 선택)</label>
           <input class="form-input" type="text" placeholder="예: Dawn Library" id="reg-name-en">
         </div>
+
+        <!-- 위치 -->
         <div class="form-group">
-          <label class="form-label">미션 위치</label>
-          <input class="form-input" type="text" placeholder="예: 한양대학교 도서관" id="reg-location">
+          <label class="form-label">미션 위치 <span style="color:#ef4444;">*</span></label>
+          <input class="form-input" type="text" placeholder="예: 한양대학교 도서관" id="reg-location"
+            oninput="updatePreview();clearFieldError('reg-location')">
+          <div class="form-error" id="err-location">위치를 입력해주세요.</div>
         </div>
+
+        <!-- 미션 유형 -->
         <div class="form-group">
           <label class="form-label">미션 유형</label>
           <select class="form-select" id="reg-type">
@@ -1316,30 +1460,55 @@
             <option value="duo">👥 2인 협력 GPS</option>
           </select>
         </div>
+
+        <!-- 포인트 -->
         <div class="form-group">
           <label class="form-label">보상 포인트</label>
-          <select class="form-select" id="reg-points">
+          <select class="form-select" id="reg-points" onchange="updatePreview()">
             <option value="100">100P (쉬움)</option>
             <option value="200">200P (보통)</option>
             <option value="300" selected>300P (어려움)</option>
             <option value="500">500P (도전)</option>
           </select>
         </div>
+
+        <!-- 색상 -->
         <div class="form-group">
           <label class="form-label">미션 색상</label>
           <div class="color-options" id="color-options">
-            <div class="color-opt selected" style="background:#7c3aed;" data-color="purple" onclick="selectColor(this)"></div>
-            <div class="color-opt" style="background:#ea580c;" data-color="orange" onclick="selectColor(this)"></div>
-            <div class="color-opt" style="background:#059669;" data-color="green" onclick="selectColor(this)"></div>
-            <div class="color-opt" style="background:#db2777;" data-color="pink" onclick="selectColor(this)"></div>
-            <div class="color-opt" style="background:#0284c7;" data-color="blue" onclick="selectColor(this)"></div>
-            <div class="color-opt" style="background:#d97706;" data-color="yellow" onclick="selectColor(this)"></div>
+            <div class="color-opt selected" style="background:#7c3aed;" data-color="purple" onclick="selectColor(this);updatePreview()"></div>
+            <div class="color-opt" style="background:#ea580c;" data-color="orange" onclick="selectColor(this);updatePreview()"></div>
+            <div class="color-opt" style="background:#059669;" data-color="green" onclick="selectColor(this);updatePreview()"></div>
+            <div class="color-opt" style="background:#db2777;" data-color="pink" onclick="selectColor(this);updatePreview()"></div>
+            <div class="color-opt" style="background:#0284c7;" data-color="blue" onclick="selectColor(this);updatePreview()"></div>
+            <div class="color-opt" style="background:#d97706;" data-color="yellow" onclick="selectColor(this);updatePreview()"></div>
           </div>
         </div>
+
+        <!-- 수행 단계 -->
         <div class="form-group">
-          <label class="form-label">미션 설명</label>
-          <textarea class="form-input" rows="3" placeholder="미션 수행 방법을 간단히 설명해주세요" id="reg-desc" style="resize:none;"></textarea>
+          <label class="form-label">수행 단계 <span style="color:#64748b;font-weight:400;font-size:11px;">(최대 5단계)</span></label>
+          <div id="steps-input-container">
+            <div class="step-input-row">
+              <div class="step-input-num">1</div>
+              <input class="form-input step-input" type="text" placeholder="예: 새벽 5시까지 도서관으로 이동" style="margin-bottom:0;" oninput="updatePreview()">
+              <button class="step-remove-btn" style="visibility:hidden;">✕</button>
+            </div>
+            <div class="step-input-row">
+              <div class="step-input-num">2</div>
+              <input class="form-input step-input" type="text" placeholder="예: GPS 위치 자동 인증" style="margin-bottom:0;" oninput="updatePreview()">
+              <button class="step-remove-btn" onclick="removeStep(this)">✕</button>
+            </div>
+          </div>
+          <button class="add-step-btn" id="add-step-btn" onclick="addStep()">＋ 단계 추가</button>
         </div>
+
+        <!-- 설명 -->
+        <div class="form-group">
+          <label class="form-label">미션 설명 <span style="color:#64748b;font-weight:400;font-size:11px;">(선택)</span></label>
+          <textarea class="form-input" rows="3" placeholder="미션의 특별한 점이나 주의사항을 적어주세요" id="reg-desc" style="resize:none;"></textarea>
+        </div>
+
         <button class="submit-btn" onclick="submitMission()">🚀 미션 등록하기</button>
         <div style="height: 20px;"></div>
       </div>
@@ -1349,6 +1518,28 @@
 </div>
 
 <script>
+  /* ── 상수 ── */
+  const ICONS = ['🎯','🏃','🚶','🌅','🌙','🌊','🏔️','🌳','🏙️','🔥','⚡','💫','🗺️','📍','🏋️','🚴','🧗','🤸','🌺','🦋','🎪','🎨','📸','🎵','🏄','🧘','🌸','🍀'];
+  const TYPE_LABELS = { gps:'GPS 인증', photo:'AI 사진검증', run:'GPS 패턴런닝', duo:'2인 협력 GPS' };
+  const COLOR_MAP = {
+    purple:{ grad:['#4c1d95','#5b21b6','#7c3aed'] },
+    orange:{ grad:['#7c2d12','#c2410c','#ea580c'] },
+    green: { grad:['#064e3b','#065f46','#059669'] },
+    pink:  { grad:['#831843','#be185d','#db2777'] },
+    blue:  { grad:['#1e3a5f','#1d4ed8','#3b82f6'] },
+    yellow:{ grad:['#78350f','#b45309','#d97706'] },
+  };
+  const COLOR_BG = { purple:'rgba(124,58,237,0.25)', orange:'rgba(234,88,12,0.25)', green:'rgba(5,150,105,0.25)', pink:'rgba(219,39,119,0.25)', blue:'rgba(2,132,199,0.25)', yellow:'rgba(217,119,6,0.25)' };
+  const COLOR_TEXT = { purple:'#a78bfa', orange:'#fb923c', green:'#34d399', pink:'#f472b6', blue:'#60a5fa', yellow:'#fbbf24' };
+
+  let selectedIcon = '🎯';
+  let selectedColor = 'purple';
+  let stepCount = 2;
+  let currentScreen = 'home';
+  let prevScreen = 'home';
+  let currentMission = 'heart';
+  let _currentUserMission = null;
+
   /* ── 실시간 시계 ── */
   function updateClock() {
     const now = new Date();
@@ -1356,6 +1547,257 @@
     const m = String(now.getMinutes()).padStart(2,'0');
     document.querySelectorAll('.status-time').forEach(el => el.textContent = h + ':' + m);
   }
+
+  /* ── XSS 방지 ── */
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── 아이콘 선택기 ── */
+  function initIconGrid() {
+    const grid = document.getElementById('icon-grid');
+    if (!grid) return;
+    grid.innerHTML = ICONS.map((ic, i) =>
+      `<div class="icon-item${i===0?' selected':''}" onclick="selectIcon(this,'${ic}')">${ic}</div>`
+    ).join('');
+    selectedIcon = ICONS[0];
+  }
+
+  function selectIcon(el, icon) {
+    document.querySelectorAll('.icon-item').forEach(i => i.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedIcon = icon;
+    updatePreview();
+  }
+
+  /* ── 단계 관리 ── */
+  function addStep() {
+    if (stepCount >= 5) { showToast('최대 5단계까지 추가할 수 있어요.'); return; }
+    stepCount++;
+    const container = document.getElementById('steps-input-container');
+    const row = document.createElement('div');
+    row.className = 'step-input-row';
+    row.innerHTML = `
+      <div class="step-input-num">${stepCount}</div>
+      <input class="form-input step-input" type="text" placeholder="수행 단계를 입력하세요" style="margin-bottom:0;" oninput="updatePreview()">
+      <button class="step-remove-btn" onclick="removeStep(this)">✕</button>
+    `;
+    container.appendChild(row);
+    if (stepCount >= 5) document.getElementById('add-step-btn').style.display = 'none';
+  }
+
+  function removeStep(btn) {
+    btn.closest('.step-input-row').remove();
+    const rows = document.querySelectorAll('#steps-input-container .step-input-row');
+    rows.forEach((r, i) => {
+      r.querySelector('.step-input-num').textContent = i + 1;
+      r.querySelector('.step-remove-btn').style.visibility = i === 0 ? 'hidden' : '';
+    });
+    stepCount = rows.length;
+    document.getElementById('add-step-btn').style.display = '';
+  }
+
+  function getSteps() {
+    return Array.from(document.querySelectorAll('.step-input')).map(i => i.value.trim()).filter(Boolean);
+  }
+
+  /* ── 실시간 미리보기 ── */
+  function updatePreview() {
+    const nameKo  = document.getElementById('reg-name-ko')?.value || '';
+    const location = document.getElementById('reg-location')?.value || '';
+    const points  = document.getElementById('reg-points')?.value || '300';
+    const card = document.getElementById('preview-card');
+    if (!card) return;
+    card.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:40px;height:40px;border-radius:12px;background:${COLOR_BG[selectedColor]};display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">${selectedIcon}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:14px;font-weight:700;color:${nameKo?'#f1f5f9':'#475569'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(nameKo)||'미션 이름'}</div>
+          <div style="font-size:11px;color:${location?'#94a3b8':'#475569'};">📍 ${escHtml(location)||'위치 미정'}</div>
+        </div>
+        <div style="font-size:13px;font-weight:700;color:${COLOR_TEXT[selectedColor]};flex-shrink:0;">+${points}P</div>
+      </div>
+      <div style="height:3px;border-radius:2px;background:#2a2a5a;margin-top:10px;"></div>
+      <div style="font-size:10px;color:#475569;margin-top:4px;text-align:right;">미완료 · 내 미션</div>
+    `;
+  }
+
+  /* ── 폼 유효성 ── */
+  function showFieldError(inputId, errId, msg) {
+    document.getElementById(inputId).classList.add('error');
+    const el = document.getElementById(errId);
+    if (el) { el.textContent = msg; el.style.display = 'block'; }
+  }
+  function clearFieldError(inputId) {
+    const el = document.getElementById(inputId);
+    if (!el) return;
+    el.classList.remove('error');
+    const errId = 'err-' + inputId.replace('reg-','');
+    const errEl = document.getElementById(errId);
+    if (errEl) errEl.style.display = 'none';
+  }
+
+  /* ── 로컬스토리지 ── */
+  function getMissions() {
+    try { return JSON.parse(localStorage.getItem('walkout_missions') || '[]'); }
+    catch { return []; }
+  }
+  function saveMission(m) {
+    const list = getMissions();
+    m.id = 'u_' + Date.now();
+    m.createdAt = Date.now();
+    list.unshift(m);
+    localStorage.setItem('walkout_missions', JSON.stringify(list));
+  }
+  function deleteMission(id, e) {
+    if (e) e.stopPropagation();
+    const list = getMissions().filter(m => m.id !== id);
+    localStorage.setItem('walkout_missions', JSON.stringify(list));
+    renderUserMissions();
+    renderProfileMissions();
+    showToast('🗑️ 미션이 삭제되었습니다.');
+  }
+
+  /* ── 렌더링: 홈 내 미션 ── */
+  function renderUserMissions() {
+    const missions = getMissions();
+    const section  = document.getElementById('user-missions-section');
+    const container = document.getElementById('user-missions-container');
+    const countEl  = document.getElementById('user-missions-count');
+    if (!section || !container) return;
+    if (missions.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    if (countEl) countEl.textContent = missions.length + '개';
+    container.innerHTML = missions.map(m => `
+      <div class="mission-card pop-in" onclick="openUserMissionDetail('${m.id}')">
+        <div class="mission-card-top">
+          <div class="mission-icon-name">
+            <div class="mission-icon ${m.color}" style="font-size:22px;background:${COLOR_BG[m.color]||COLOR_BG.purple};">${escHtml(m.icon)}</div>
+            <div>
+              <div class="mission-name">${escHtml(m.nameKo)}</div>
+              <div class="mission-subname">${m.nameEn?escHtml(m.nameEn)+' · ':''}${escHtml(m.location)}</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;">
+            <span class="my-mission-badge">내 미션</span>
+            <span class="mission-delete-btn" onclick="deleteMission('${m.id}',event)">삭제</span>
+          </div>
+        </div>
+        <div class="mission-meta">
+          <div class="mission-loc">📍 ${escHtml(m.location)}</div>
+          <div class="mission-pts">+${m.points}P</div>
+        </div>
+        ${m.desc?`<div class="mission-info">${escHtml(m.desc)}</div>`:''}
+      </div>
+    `).join('');
+  }
+
+  /* ── 렌더링: 프로필 내 미션 ── */
+  function renderProfileMissions() {
+    const missions  = getMissions();
+    const section   = document.getElementById('profile-my-missions-section');
+    const container = document.getElementById('profile-my-missions-container');
+    if (!section || !container) return;
+    if (missions.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    container.innerHTML = missions.map(m => `
+      <div class="my-mission-list-item" onclick="openUserMissionDetail('${m.id}')">
+        <div class="my-mission-list-left">
+          <div class="my-mission-icon-sm">${escHtml(m.icon)}</div>
+          <div>
+            <div class="my-mission-name-sm">${escHtml(m.nameKo)}</div>
+            <div class="my-mission-pts-sm">+${m.points}P · ${TYPE_LABELS[m.type]||m.type}</div>
+          </div>
+        </div>
+        <span class="mission-delete-btn" onclick="deleteMission('${m.id}',event)">삭제</span>
+      </div>
+    `).join('');
+  }
+
+  /* ── 사용자 미션 상세 ── */
+  function openUserMissionDetail(id) {
+    const m = getMissions().find(x => x.id === id);
+    if (!m) return;
+    _currentUserMission = m;
+    currentMission = '_user';
+
+    const c = (COLOR_MAP[m.color] || COLOR_MAP.purple).grad;
+    document.getElementById('detail-name').textContent = m.nameKo;
+    document.getElementById('detail-sub').textContent  = (m.nameEn ? m.nameEn + ' · ' : '') + m.location;
+    document.getElementById('detail-tag1').textContent = TYPE_LABELS[m.type] || m.type;
+    document.getElementById('detail-tag2').textContent = '+' + m.points + 'P';
+    document.getElementById('detail-tag3').textContent = m.type === 'duo' ? '2인 필수' : 'GPS 인증';
+    document.getElementById('start-btn').textContent   = '🚀 미션 시작하기';
+
+    document.querySelector('#screen-detail .detail-header').style.background = `linear-gradient(160deg,${c[0]},${c[1]})`;
+    document.querySelector('#screen-detail .status-bar').style.background    = `linear-gradient(160deg,${c[0]},${c[1]})`;
+
+    const stepList = (m.steps && m.steps.length) ? m.steps : ['미션 위치로 이동', 'GPS 인증 완료', '미션 완성!'];
+    document.getElementById('steps-container').innerHTML = stepList.map((s, i) =>
+      `<div class="step-item"><div class="step-num" style="background:${c[2]}">${i+1}</div><div class="step-text">${escHtml(s)}</div></div>`
+    ).join('');
+
+    document.getElementById('partner-section').style.display = m.type === 'duo' ? 'flex' : 'none';
+
+    document.getElementById('detail-illustration').innerHTML = `
+      <svg viewBox="0 0 300 140" style="width:100%;height:100%;">
+        <defs>
+          <radialGradient id="ubg" cx="50%" cy="50%" r="60%">
+            <stop offset="0%" stop-color="${c[1]}aa"/>
+            <stop offset="100%" stop-color="#12122a"/>
+          </radialGradient>
+        </defs>
+        <rect width="300" height="140" fill="url(#ubg)" rx="8"/>
+        <circle cx="150" cy="62" r="50" fill="rgba(255,255,255,0.04)"/>
+        <circle cx="150" cy="62" r="33" fill="rgba(255,255,255,0.06)"/>
+        <circle cx="150" cy="62" r="20" fill="rgba(255,255,255,0.08)"/>
+        <text x="150" y="75" text-anchor="middle" font-size="30">${escHtml(m.icon)}</text>
+        <circle cx="150" cy="62" r="58" stroke="${c[2]}" stroke-width="1.5" fill="none" stroke-dasharray="5,4" opacity="0.45"/>
+        <circle cx="150" cy="62" r="72" stroke="${c[2]}" stroke-width="1"   fill="none" stroke-dasharray="3,7" opacity="0.2"/>
+        <text x="150" y="125" text-anchor="middle" fill="${c[2]}" font-size="10" font-weight="bold" opacity="0.85">${escHtml(m.nameKo)} · 사용자 등록 미션</text>
+      </svg>`;
+
+    showScreen('detail');
+  }
+
+  /* ── 미션 등록 제출 ── */
+  function submitMission() {
+    const nameKo   = document.getElementById('reg-name-ko').value.trim();
+    const nameEn   = document.getElementById('reg-name-en').value.trim();
+    const location = document.getElementById('reg-location').value.trim();
+    const type     = document.getElementById('reg-type').value;
+    const points   = parseInt(document.getElementById('reg-points').value);
+    const desc     = document.getElementById('reg-desc').value.trim();
+    const steps    = getSteps();
+
+    let valid = true;
+    if (!nameKo) { showFieldError('reg-name-ko','err-name-ko','미션 이름을 입력해주세요.'); valid = false; }
+    else clearFieldError('reg-name-ko');
+    if (!location) { showFieldError('reg-location','err-location','위치를 입력해주세요.'); valid = false; }
+    else clearFieldError('reg-location');
+    if (!valid) { showToast('⚠️ 필수 항목을 입력해주세요.'); return; }
+
+    saveMission({ nameKo, nameEn, location, type, points, desc, steps, icon: selectedIcon, color: selectedColor });
+    renderUserMissions();
+    renderProfileMissions();
+
+    // 폼 초기화
+    ['reg-name-ko','reg-name-en','reg-location','reg-desc'].forEach(id => { document.getElementById(id).value = ''; });
+    Array.from(document.querySelectorAll('#steps-input-container .step-input-row')).forEach((r, i) => {
+      if (i >= 2) r.remove(); else r.querySelector('.step-input').value = '';
+    });
+    stepCount = 2;
+    document.getElementById('add-step-btn').style.display = '';
+    document.querySelectorAll('.icon-item').forEach((el, i) => el.classList.toggle('selected', i === 0));
+    selectedIcon = ICONS[0];
+    document.querySelectorAll('.color-opt').forEach((el, i) => el.classList.toggle('selected', i === 0));
+    selectedColor = 'purple';
+    updatePreview();
+
+    showToast('✅ "' + nameKo + '" 미션이 등록되었습니다!');
+    setTimeout(() => showScreen('home'), 1300);
+  }
+
   updateClock();
   setInterval(updateClock, 1000);
 
@@ -1505,8 +1947,6 @@
     </svg>`
   };
 
-  let currentScreen = 'home';
-  let prevScreen = 'home';
   const missionData = {
     dawn: {
       name: '새벽 5시 도서관',
@@ -1549,8 +1989,6 @@
       partner: true,
     },
   };
-
-  let currentMission = 'heart';
 
   function showScreen(name) {
     prevScreen = currentScreen;
@@ -1606,62 +2044,26 @@
   }
 
   function completeMission() {
-    const m = missionData[currentMission];
-    document.getElementById('complete-mission-name').textContent = m.completeName;
-    document.getElementById('comp-pts').textContent = m.pts;
-    document.getElementById('comp-dist').textContent = m.dist;
-    document.getElementById('comp-time').textContent = m.time;
-    // 미션별로 완료 일러스트 변경
-    const completeIllus = document.querySelector('#screen-complete .route-display-green');
-    if (currentMission === 'heart') {
-      completeIllus.innerHTML = `<svg viewBox="0 0 300 140" style="width:100%;height:100%;">
-        <path d="M150,110 C80,80 30,55 30,30 C30,10 50,5 70,15 C90,25 110,40 150,60 C190,40 210,25 230,15 C250,5 270,10 270,30 C270,55 220,80 150,110Z"
-          stroke="#10b981" stroke-width="3" fill="rgba(16,185,129,0.1)" stroke-dasharray="none"/>
-        <circle cx="70" cy="15" r="5" fill="#60a5fa"/>
-        <circle cx="230" cy="15" r="5" fill="#ec4899"/>
-        <circle cx="150" cy="110" r="8" fill="#fbbf24"/>
-        <text x="62" y="8" fill="#6b7280" font-size="8">인증 완료 ✓</text>
-        <text x="218" y="8" fill="#6b7280" font-size="8">인증 완료 ✓</text>
-        <text x="130" y="130" fill="#fbbf24" font-size="9">합류점 ★</text>
-      </svg>`;
+    if (currentMission === '_user' && _currentUserMission) {
+      const m = _currentUserMission;
+      document.getElementById('complete-mission-name').textContent = m.nameKo + ' 성공';
+      document.getElementById('comp-pts').textContent = '+' + m.points + 'P';
+      document.getElementById('comp-dist').textContent = '—';
+      document.getElementById('comp-time').textContent = '—';
     } else {
-      completeIllus.innerHTML = illustrations[currentMission] || '';
+      const m = missionData[currentMission];
+      document.getElementById('complete-mission-name').textContent = m.completeName;
+      document.getElementById('comp-pts').textContent = m.pts;
+      document.getElementById('comp-dist').textContent = m.dist;
+      document.getElementById('comp-time').textContent = m.time;
     }
-
-    // 미션별 배지 정보 정의
-    const badgeData = {
-      dawn:   { icon: '🌙', title: '새벽 용사 배지 획득!', desc: '이른 새벽을 정복한 당신!' },
-      sunrise:{ icon: '🌅', title: '일출 사냥꾼 배지 획득!', desc: '아침 햇살과 함께 인증 성공' },
-      run:    { icon: '🏃', title: '러너 배지 획득!', desc: 'GPS로 이니셜을 완성!' },
-      heart:  { icon: '💑', title: '페어 (Pair) 배지 획득!', desc: '함께라서 완성되는 미션' },
-    };
-    const badge = badgeData[currentMission] || badgeData.heart;
-    const badgeBox = document.querySelector('#screen-complete .badge-box');
-    badgeBox.innerHTML = `
-      <div class="badge-icon">${badge.icon}</div>
-      <div>
-        <div class="badge-title">${badge.title}</div>
-        <div class="badge-desc">${badge.desc}</div>
-      </div>
-    `;
-
     showScreen('complete');
   }
 
   function selectColor(el) {
     document.querySelectorAll('.color-opt').forEach(o => o.classList.remove('selected'));
     el.classList.add('selected');
-  }
-
-  function submitMission() {
-    const name = document.getElementById('reg-name-ko').value.trim();
-    const loc = document.getElementById('reg-location').value.trim();
-    if (!name || !loc) {
-      showToast('⚠️ 미션 이름과 위치를 입력해주세요!');
-      return;
-    }
-    showToast(`✅ "${name}" 미션이 등록되었습니다!`);
-    setTimeout(() => showScreen('home'), 1500);
+    selectedColor = el.dataset.color;
   }
 
   let toastTimer = null;
@@ -1672,6 +2074,12 @@
     if (toastTimer) clearTimeout(toastTimer);
     toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
   }
+
+  /* ── 초기화 ── */
+  initIconGrid();
+  updatePreview();
+  renderUserMissions();
+  renderProfileMissions();
 </script>
 </body>
 </html>
