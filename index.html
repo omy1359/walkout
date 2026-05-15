@@ -541,6 +541,13 @@
     justify-content: center;
     margin-top: 20px;
   }
+  .profile-login-note {
+    margin-top: 18px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.85);
+    text-align: center;
+    line-height: 1.5;
+  }
   .kakao-login-btn, .kakao-logout-btn {
     flex: 1;
     border: none;
@@ -563,6 +570,77 @@
     box-shadow: 0 10px 22px rgba(30,41,59,0.18);
   }
   .kakao-logout-btn:hover { transform: translateY(-1px); }
+
+  .home-login-btn {
+    width: 100%;
+    margin-top: 18px;
+    border: none;
+    border-radius: 18px;
+    padding: 16px 0;
+    font-size: 14px;
+    font-weight: 800;
+    color: #1e293b;
+    background: #f8fafc;
+    box-shadow: 0 14px 30px rgba(255,255,255,0.9);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  }
+  .home-login-btn:hover { transform: translateY(-1px); }
+
+  .login-screen {
+    padding: 0 20px;
+  }
+  .login-header {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 20px 0 16px;
+  }
+  .login-title {
+    font-size: 28px;
+    font-weight: 900;
+    color: #0f172a;
+    line-height: 1.1;
+  }
+  .login-subtitle {
+    font-size: 14px;
+    color: #475569;
+    line-height: 1.6;
+  }
+  .login-hero {
+    border-radius: 24px;
+    background: linear-gradient(180deg, #7c3aed 0%, #4f46e5 100%);
+    color: #fff;
+    padding: 24px;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(124,58,237,0.25);
+  }
+  .login-hero-icon {
+    font-size: 42px;
+    margin-bottom: 12px;
+  }
+  .login-hero-copy {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+  .login-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 10px;
+  }
+  .login-back-btn {
+    border: 1px solid rgba(15,23,42,0.12);
+    background: #ffffff;
+    color: #0f172a;
+    padding: 14px;
+    border-radius: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .login-back-btn:hover { transform: translateY(-1px); }
 
   .profile-section { padding: 20px 20px 0; }
   .profile-section-title { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 12px; }
@@ -1202,6 +1280,7 @@
       <div class="greeting">안녕하세요, 민혁님 👋</div>
       <div class="app-title">워크아웃</div>
       <div class="app-subtitle">위치 기반 미션 플랫폼</div>
+      <button class="home-login-btn" id="home-login-btn" onclick="showScreen('login')">카카오 로그인</button>
       <div class="stats-row">
         <div class="stat-box">
           <div class="stat-num">12</div>
@@ -1244,8 +1323,6 @@
             <div>
               <div class="mission-name">새벽 5시 도서관</div>
               <div class="mission-subname">Dawn Library · 한양대 · 시험기간</div>
-            </div>
-          </div>
           <div class="mission-tag tag-active">진행중</div>
         </div>
         <div class="mission-meta">
@@ -1324,27 +1401,6 @@
             <div>
               <div class="mission-name">이니셜 런닝</div>
               <div class="mission-subname">Initial Run · 내 위치 기준 · 2km+</div>
-            </div>
-          </div>
-          <div class="mission-tag tag-rec">추천</div>
-        </div>
-        <div class="mission-meta">
-          <div class="mission-loc">📍 내 위치 기준</div>
-          <div class="mission-pts">+180P</div>
-        </div>
-        <div class="mission-info">이니셜 'OMH' 도전! 러닝 GPS로 글씨 쓰기</div>
-      </div>
-
-      <!-- Mission 4: 릴레이 하트 -->
-      <div class="mission-card" onclick="openMissionDetail('heart')">
-        <div class="mission-card-top">
-          <div class="mission-icon-name">
-            <div class="mission-icon pink">
-              <svg width="28" height="28" viewBox="0 0 28 28">
-                <!-- 하트 경로 -->
-                <path d="M14,22 C6,17 2,13 2,8 C2,5 4,3 7,3 C10,3 12,5 14,8 C16,5 18,3 21,3 C24,3 26,5 26,8 C26,13 22,17 14,22Z"
-                  stroke="#f472b6" stroke-width="1.5" fill="rgba(244,114,182,0.2)" stroke-dasharray="3,2"/>
-                <!-- 사람 A (파란점) -->
                 <circle cx="7" cy="5" r="2" fill="#60a5fa"/>
                 <!-- 사람 B (핑크점) -->
                 <circle cx="21" cy="5" r="2" fill="#ec4899"/>
@@ -1407,6 +1463,27 @@
       <div class="nav-item" onclick="showScreen('profile')">
         <div class="nav-icon">👤</div>
         <span>프로필</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-login">
+    <div class="status-bar">
+      <span class="status-time">00:00</span>
+      <div class="status-icons"><span>📶</span><span>🔋</span></div>
+    </div>
+    <div class="login-screen">
+      <div class="login-header">
+        <div class="login-title">로그인으로 워크아웃을 시작하세요</div>
+        <div class="login-subtitle">카카오 계정으로 빠르게 로그인하면 미션 기록과 보상을 안전하게 보관할 수 있어요.</div>
+        <div class="login-hero">
+          <div class="login-hero-icon">🏃‍♂️</div>
+          <div class="login-hero-copy">위치 기반 미션을 즐기고, 오늘의 운동을 더 특별하게 만들어보세요.</div>
+        </div>
+      </div>
+      <div class="login-body">
+        <button class="kakao-login-btn" id="kakao-login-btn" onclick="handleKakaoAuth()">카카오로 로그인</button>
+        <button class="login-back-btn" onclick="showScreen('home')">홈으로 돌아가기</button>
       </div>
     </div>
   </div>
@@ -1731,10 +1808,8 @@
           <div class="profile-stat-label">총 거리</div>
         </div>
       </div>
-      <div class="profile-login-row">
-        <button class="kakao-login-btn" id="kakao-login-btn" onclick="handleKakaoAuth()">Login with Kakao</button>
-        <button class="kakao-logout-btn" id="kakao-logout-btn" onclick="logoutKakao()" style="display:none;">로그아웃</button>
-      </div>
+      <div class="profile-login-note" id="profile-login-note">로그인 후 나의 미션 기록을 확인할 수 있어요.</div>
+      <button class="kakao-logout-btn" id="kakao-logout-btn" onclick="logoutKakao()" style="display:none;">로그아웃</button>
     </div>
 
     <div class="scroll-area">
@@ -2046,6 +2121,7 @@
     const levelEl = document.querySelector('.profile-level');
     const avatarEl = document.querySelector('.profile-avatar');
     const loginBtn = document.getElementById('kakao-login-btn');
+    const homeLoginBtn = document.getElementById('home-login-btn');
     const logoutBtn = document.getElementById('kakao-logout-btn');
     if (!nameEl || !levelEl || !avatarEl || !loginBtn || !logoutBtn) return;
 
@@ -2061,6 +2137,10 @@
       avatarEl.textContent = '🦊';
       loginBtn.style.display = 'block';
       logoutBtn.style.display = 'none';
+      if (homeLoginBtn) homeLoginBtn.style.display = 'block';
+    }
+    if (homeLoginBtn && kakaoUser && kakaoUser.properties?.nickname) {
+      homeLoginBtn.style.display = 'none';
     }
   }
 
