@@ -10,6 +10,8 @@
 <!-- Kakao Maps SDK (autoload=true, 동기 로드) -->
 <script type="text/javascript"
   src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=39baf3943f8fdb00ae8f988f6dc87af3&libraries=services"></script>
+<!-- Kakao JavaScript SDK for login -->
+<script src="https://developers.kakao.com/sdk/js/kakao.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -1983,8 +1985,12 @@
   /* ── 카카오 API 키 (발급 후 여기에 입력) ── */
   const KAKAO_KEY = '39baf3943f8fdb00ae8f988f6dc87af3';
   const KAKAO_REST_KEY = 'cac1dcba56e760ef4a078ed54d48f6b9';
+  const KAKAO_JS_KEY = 'YOUR_KAKAO_JS_KEY';
   const KAKAO_LOGIN_REDIRECT_URI = window.location.origin + window.location.pathname.replace(/\/index\.html$/, '/');
   let kakaoUser = null;
+  if (window.Kakao && !Kakao.isInitialized()) {
+    Kakao.init(KAKAO_JS_KEY);
+  }
 
   /* ── 상수 ── */
   const ICONS = ['🎯','🏃','🚶','🌅','🌙','🌊','🏔️','🌳','🏙️','🔥','⚡','💫','🗺️','📍','🏋️','🚴','🧗','🤸','🌺','🦋','🎪','🎨','📸','🎵','🏄','🧘','🌸','🍀'];
@@ -2059,54 +2065,24 @@
   }
 
   function handleKakaoAuth() {
-    const authUrl = `https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=${encodeURIComponent(KAKAO_REST_KEY)}&redirect_uri=${encodeURIComponent(KAKAO_LOGIN_REDIRECT_URI)}`;
-    window.location.href = authUrl;
-  }
-
-  async function exchangeKakaoCodeForToken(code) {
-    try {
-      const res = await fetch('https://kauth.kakao.com/oauth/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
-        body: new URLSearchParams({
-          grant_type: 'authorization_code',
-          client_id: KAKAO_REST_KEY,
-          redirect_uri: KAKAO_LOGIN_REDIRECT_URI,
-          code,
-        })
-      });
-      if (!res.ok) throw new Error('토큰 발급 실패');
-      return res.json();
-    } catch (error) {
-      showToast('카카오 로그인 실패: ' + error.message);
-      return null;
+    if (!window.Kakao || !Kakao.isInitialized()) {
+      showToast('카카오 SDK 로드에 실패했습니다. 키를 확인하세요.');
+      return;
     }
-  }
-
-  async function fetchKakaoUserInfo(accessToken) {
-    try {
-      const res = await fetch('https://kapi.kakao.com/v2/user/me', {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
-      if (!res.ok) throw new Error('사용자 정보 조회 실패');
-      return res.json();
-    } catch (error) {
-      showToast('카카오 사용자 정보 조회 실패: ' + error.message);
-      return null;
-    }
-  }
-
-  async function handleKakaoRedirect() {
-    const code = getQueryParam('code');
-    if (!code) return;
-    removeQueryParam('code');
-    showToast('카카오 로그인 중...');
-    const tokenData = await exchangeKakaoCodeForToken(code);
-    if (!tokenData?.access_token) return;
-    const userInfo = await fetchKakaoUserInfo(tokenData.access_token);
-    if (!userInfo) return;
-    saveKakaoUser(userInfo);
-    showToast('카카오 로그인에 성공했습니다!');
+    Kakao.Auth.login({
+      success: async auth => {
+        try {
+          const userInfo = await Kakao.API.request({ url: '/v2/user/me' });
+          saveKakaoUser(userInfo);
+          showToast('카카오 로그인에 성공했습니다!');
+        } catch (error) {
+          showToast('카카오 사용자 정보 조회 실패: ' + (error?.message || error));
+        }
+      },
+      fail: error => {
+        showToast('카카오 로그인 실패: ' + (error.error_description || error.error || error));
+      }
+    });
   }
 
   function logoutKakao() {
