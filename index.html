@@ -533,6 +533,35 @@
   .profile-stat-num { font-size: 22px; font-weight: 800; color: #fff; }
   .profile-stat-label { font-size: 11px; color: #ffffff; }
 
+  .profile-login-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 20px;
+  }
+  .kakao-login-btn, .kakao-logout-btn {
+    flex: 1;
+    border: none;
+    border-radius: 16px;
+    padding: 14px 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .kakao-login-btn {
+    background: #fee500;
+    color: #191919;
+    box-shadow: 0 10px 22px rgba(254,229,0,0.35);
+  }
+  .kakao-login-btn:hover { transform: translateY(-1px); }
+  .kakao-logout-btn {
+    background: #1e293b;
+    color: #fff;
+    box-shadow: 0 10px 22px rgba(30,41,59,0.18);
+  }
+  .kakao-logout-btn:hover { transform: translateY(-1px); }
+
   .profile-section { padding: 20px 20px 0; }
   .profile-section-title { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 12px; }
 
@@ -1700,6 +1729,10 @@
           <div class="profile-stat-label">총 거리</div>
         </div>
       </div>
+      <div class="profile-login-row">
+        <button class="kakao-login-btn" id="kakao-login-btn" onclick="handleKakaoAuth()">Login with Kakao</button>
+        <button class="kakao-logout-btn" id="kakao-logout-btn" onclick="logoutKakao()" style="display:none;">로그아웃</button>
+      </div>
     </div>
 
     <div class="scroll-area">
@@ -1949,6 +1982,9 @@
 <script>
   /* ── 카카오 API 키 (발급 후 여기에 입력) ── */
   const KAKAO_KEY = '39baf3943f8fdb00ae8f988f6dc87af3';
+  const KAKAO_REST_KEY = 'YOUR_KAKAO_REST_API_KEY';
+  const KAKAO_LOGIN_REDIRECT_URI = window.location.origin + window.location.pathname;
+  let kakaoUser = null;
 
   /* ── 상수 ── */
   const ICONS = ['🎯','🏃','🚶','🌅','🌙','🌊','🏔️','🌳','🏙️','🔥','⚡','💫','🗺️','📍','🏋️','🚴','🧗','🤸','🌺','🦋','🎪','🎨','📸','🎵','🏄','🧘','🌸','🍀'];
@@ -1971,6 +2007,114 @@
   let prevScreen = 'home';
   let currentMission = 'heart';
   let _currentUserMission = null;
+
+  function getQueryParam(name) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name);
+  }
+
+  function removeQueryParam(name) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete(name);
+    history.replaceState(null, '', url.toString());
+  }
+
+  function saveKakaoUser(user) {
+    kakaoUser = user;
+    localStorage.setItem('walkout_kakao_user', JSON.stringify(user));
+    updateProfileView();
+  }
+
+  function loadKakaoUser() {
+    try {
+      const stored = localStorage.getItem('walkout_kakao_user');
+      if (stored) kakaoUser = JSON.parse(stored);
+    } catch (e) {
+      kakaoUser = null;
+    }
+    updateProfileView();
+  }
+
+  function updateProfileView() {
+    const nameEl = document.querySelector('.profile-name');
+    const levelEl = document.querySelector('.profile-level');
+    const avatarEl = document.querySelector('.profile-avatar');
+    const loginBtn = document.getElementById('kakao-login-btn');
+    const logoutBtn = document.getElementById('kakao-logout-btn');
+    if (!nameEl || !levelEl || !avatarEl || !loginBtn || !logoutBtn) return;
+
+    if (kakaoUser && kakaoUser.properties?.nickname) {
+      nameEl.textContent = kakaoUser.properties.nickname;
+      levelEl.textContent = '카카오 로그인 사용자';
+      avatarEl.textContent = kakaoUser.properties.profile_image ? '😊' : (kakaoUser.properties.nickname[0] || '👤');
+      loginBtn.style.display = 'none';
+      logoutBtn.style.display = 'block';
+    } else {
+      nameEl.textContent = '오민혁';
+      levelEl.textContent = 'Lv.3 · 미션 탐험가';
+      avatarEl.textContent = '🦊';
+      loginBtn.style.display = 'block';
+      logoutBtn.style.display = 'none';
+    }
+  }
+
+  function handleKakaoAuth() {
+    const authUrl = `https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=${encodeURIComponent(KAKAO_REST_KEY)}&redirect_uri=${encodeURIComponent(KAKAO_LOGIN_REDIRECT_URI)}`;
+    window.location.href = authUrl;
+  }
+
+  async function exchangeKakaoCodeForToken(code) {
+    try {
+      const res = await fetch('https://kauth.kakao.com/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          client_id: KAKAO_REST_KEY,
+          redirect_uri: KAKAO_LOGIN_REDIRECT_URI,
+          code,
+        })
+      });
+      if (!res.ok) throw new Error('토큰 발급 실패');
+      return res.json();
+    } catch (error) {
+      showToast('카카오 로그인 실패: ' + error.message);
+      return null;
+    }
+  }
+
+  async function fetchKakaoUserInfo(accessToken) {
+    try {
+      const res = await fetch('https://kapi.kakao.com/v2/user/me', {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (!res.ok) throw new Error('사용자 정보 조회 실패');
+      return res.json();
+    } catch (error) {
+      showToast('카카오 사용자 정보 조회 실패: ' + error.message);
+      return null;
+    }
+  }
+
+  async function handleKakaoRedirect() {
+    const code = getQueryParam('code');
+    if (!code) return;
+    removeQueryParam('code');
+    showToast('카카오 로그인 중...');
+    const tokenData = await exchangeKakaoCodeForToken(code);
+    if (!tokenData?.access_token) return;
+    const userInfo = await fetchKakaoUserInfo(tokenData.access_token);
+    if (!userInfo) return;
+    saveKakaoUser(userInfo);
+    showToast('카카오 로그인에 성공했습니다!');
+  }
+
+  function logoutKakao() {
+    kakaoUser = null;
+    localStorage.removeItem('walkout_kakao_user');
+    updateProfileView();
+    showToast('카카오 로그아웃 되었습니다.');
+  }
 
   /* ── 실시간 시계 ── */
   function updateClock() {
@@ -3165,6 +3309,8 @@
   }
 
   /* ── 초기화 ── */
+  handleKakaoRedirect();
+  loadKakaoUser();
   initIconGrid();
   updatePreview();
   renderUserMissions();
