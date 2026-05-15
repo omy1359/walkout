@@ -10,8 +10,6 @@
 <!-- Kakao Maps SDK (autoload=true, 동기 로드) -->
 <script type="text/javascript"
   src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=39baf3943f8fdb00ae8f988f6dc87af3&libraries=services"></script>
-<!-- Kakao JavaScript SDK for login -->
-<script src="https://developers.kakao.com/sdk/js/kakao.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -534,113 +532,6 @@
   .profile-stat { text-align: center; }
   .profile-stat-num { font-size: 22px; font-weight: 800; color: #fff; }
   .profile-stat-label { font-size: 11px; color: #ffffff; }
-
-  .profile-login-row {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    margin-top: 20px;
-  }
-  .profile-login-note {
-    margin-top: 18px;
-    font-size: 13px;
-    color: rgba(255,255,255,0.85);
-    text-align: center;
-    line-height: 1.5;
-  }
-  .kakao-login-btn, .kakao-logout-btn {
-    flex: 1;
-    border: none;
-    border-radius: 16px;
-    padding: 14px 12px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
-  }
-  .kakao-login-btn {
-    background: #fee500;
-    color: #191919;
-    box-shadow: 0 10px 22px rgba(254,229,0,0.35);
-  }
-  .kakao-login-btn:hover { transform: translateY(-1px); }
-  .kakao-logout-btn {
-    background: #1e293b;
-    color: #fff;
-    box-shadow: 0 10px 22px rgba(30,41,59,0.18);
-  }
-  .kakao-logout-btn:hover { transform: translateY(-1px); }
-
-  .home-login-btn {
-    width: 100%;
-    margin-top: 18px;
-    border: none;
-    border-radius: 18px;
-    padding: 16px 0;
-    font-size: 14px;
-    font-weight: 800;
-    color: #1e293b;
-    background: #f8fafc;
-    box-shadow: 0 14px 30px rgba(255,255,255,0.9);
-    cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
-  }
-  .home-login-btn:hover { transform: translateY(-1px); }
-
-  .login-screen {
-    padding: 0 20px;
-  }
-  .login-header {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin: 20px 0 16px;
-  }
-  .login-title {
-    font-size: 28px;
-    font-weight: 900;
-    color: #0f172a;
-    line-height: 1.1;
-  }
-  .login-subtitle {
-    font-size: 14px;
-    color: #475569;
-    line-height: 1.6;
-  }
-  .login-hero {
-    border-radius: 24px;
-    background: linear-gradient(180deg, #7c3aed 0%, #4f46e5 100%);
-    color: #fff;
-    padding: 24px;
-    text-align: center;
-    box-shadow: 0 24px 60px rgba(124,58,237,0.25);
-  }
-  .login-hero-icon {
-    font-size: 42px;
-    margin-bottom: 12px;
-  }
-  .login-hero-copy {
-    font-size: 15px;
-    font-weight: 700;
-    line-height: 1.4;
-  }
-  .login-body {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    margin-top: 10px;
-  }
-  .login-back-btn {
-    border: 1px solid rgba(15,23,42,0.12);
-    background: #ffffff;
-    color: #0f172a;
-    padding: 14px;
-    border-radius: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
-  }
-  .login-back-btn:hover { transform: translateY(-1px); }
 
   .profile-section { padding: 20px 20px 0; }
   .profile-section-title { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 12px; }
@@ -1280,8 +1171,8 @@
       <div class="greeting">안녕하세요, 민혁님 👋</div>
       <div class="app-title">워크아웃</div>
       <div class="app-subtitle">위치 기반 미션 플랫폼</div>
-      <button class="home-login-btn" id="home-login-btn" onclick="showScreen('login')">카카오 로그인</button>
       <div class="stats-row">
+
         <div class="stat-box">
           <div class="stat-num">12</div>
           <div class="stat-label">완료</div>
@@ -1463,27 +1354,6 @@
       <div class="nav-item" onclick="showScreen('profile')">
         <div class="nav-icon">👤</div>
         <span>프로필</span>
-      </div>
-    </div>
-  </div>
-
-  <div class="screen" id="screen-login">
-    <div class="status-bar">
-      <span class="status-time">00:00</span>
-      <div class="status-icons"><span>📶</span><span>🔋</span></div>
-    </div>
-    <div class="login-screen">
-      <div class="login-header">
-        <div class="login-title">로그인으로 워크아웃을 시작하세요</div>
-        <div class="login-subtitle">카카오 계정으로 빠르게 로그인하면 미션 기록과 보상을 안전하게 보관할 수 있어요.</div>
-        <div class="login-hero">
-          <div class="login-hero-icon">🏃‍♂️</div>
-          <div class="login-hero-copy">위치 기반 미션을 즐기고, 오늘의 운동을 더 특별하게 만들어보세요.</div>
-        </div>
-      </div>
-      <div class="login-body">
-        <button class="kakao-login-btn" id="kakao-login-btn" onclick="handleKakaoAuth()">카카오로 로그인</button>
-        <button class="login-back-btn" onclick="showScreen('home')">홈으로 돌아가기</button>
       </div>
     </div>
   </div>
@@ -1808,8 +1678,6 @@
           <div class="profile-stat-label">총 거리</div>
         </div>
       </div>
-      <div class="profile-login-note" id="profile-login-note">로그인 후 나의 미션 기록을 확인할 수 있어요.</div>
-      <button class="kakao-logout-btn" id="kakao-logout-btn" onclick="logoutKakao()" style="display:none;">로그아웃</button>
     </div>
 
     <div class="scroll-area">
@@ -2057,16 +1925,6 @@
 </div>
 
 <script>
-  /* ── 카카오 API 키 (발급 후 여기에 입력) ── */
-  const KAKAO_KEY = '39baf3943f8fdb00ae8f988f6dc87af3';
-  const KAKAO_REST_KEY = 'cac1dcba56e760ef4a078ed54d48f6b9';
-  const KAKAO_JS_KEY = 'YOUR_KAKAO_JS_KEY';
-  const KAKAO_LOGIN_REDIRECT_URI = window.location.origin + window.location.pathname.replace(/\/index\.html$/, '/');
-  let kakaoUser = null;
-  if (window.Kakao && !Kakao.isInitialized()) {
-    Kakao.init(KAKAO_JS_KEY);
-  }
-
   /* ── 상수 ── */
   const ICONS = ['🎯','🏃','🚶','🌅','🌙','🌊','🏔️','🌳','🏙️','🔥','⚡','💫','🗺️','📍','🏋️','🚴','🧗','🤸','🌺','🦋','🎪','🎨','📸','🎵','🏄','🧘','🌸','🍀'];
   const TYPE_LABELS = { gps:'GPS 인증', photo:'AI 사진검증', run:'GPS 패턴런닝', duo:'2인 협력 GPS' };
@@ -2098,78 +1956,6 @@
     const url = new URL(window.location.href);
     url.searchParams.delete(name);
     history.replaceState(null, '', url.toString());
-  }
-
-  function saveKakaoUser(user) {
-    kakaoUser = user;
-    localStorage.setItem('walkout_kakao_user', JSON.stringify(user));
-    updateProfileView();
-  }
-
-  function loadKakaoUser() {
-    try {
-      const stored = localStorage.getItem('walkout_kakao_user');
-      if (stored) kakaoUser = JSON.parse(stored);
-    } catch (e) {
-      kakaoUser = null;
-    }
-    updateProfileView();
-  }
-
-  function updateProfileView() {
-    const nameEl = document.querySelector('.profile-name');
-    const levelEl = document.querySelector('.profile-level');
-    const avatarEl = document.querySelector('.profile-avatar');
-    const loginBtn = document.getElementById('kakao-login-btn');
-    const homeLoginBtn = document.getElementById('home-login-btn');
-    const logoutBtn = document.getElementById('kakao-logout-btn');
-    if (!nameEl || !levelEl || !avatarEl || !loginBtn || !logoutBtn) return;
-
-    if (kakaoUser && kakaoUser.properties?.nickname) {
-      nameEl.textContent = kakaoUser.properties.nickname;
-      levelEl.textContent = '카카오 로그인 사용자';
-      avatarEl.textContent = kakaoUser.properties.profile_image ? '😊' : (kakaoUser.properties.nickname[0] || '👤');
-      loginBtn.style.display = 'none';
-      logoutBtn.style.display = 'block';
-    } else {
-      nameEl.textContent = '오민혁';
-      levelEl.textContent = 'Lv.3 · 미션 탐험가';
-      avatarEl.textContent = '🦊';
-      loginBtn.style.display = 'block';
-      logoutBtn.style.display = 'none';
-      if (homeLoginBtn) homeLoginBtn.style.display = 'block';
-    }
-    if (homeLoginBtn && kakaoUser && kakaoUser.properties?.nickname) {
-      homeLoginBtn.style.display = 'none';
-    }
-  }
-
-  function handleKakaoAuth() {
-    if (!window.Kakao || !Kakao.isInitialized()) {
-      showToast('카카오 SDK 로드에 실패했습니다. 키를 확인하세요.');
-      return;
-    }
-    Kakao.Auth.login({
-      success: async auth => {
-        try {
-          const userInfo = await Kakao.API.request({ url: '/v2/user/me' });
-          saveKakaoUser(userInfo);
-          showToast('카카오 로그인에 성공했습니다!');
-        } catch (error) {
-          showToast('카카오 사용자 정보 조회 실패: ' + (error?.message || error));
-        }
-      },
-      fail: error => {
-        showToast('카카오 로그인 실패: ' + (error.error_description || error.error || error));
-      }
-    });
-  }
-
-  function logoutKakao() {
-    kakaoUser = null;
-    localStorage.removeItem('walkout_kakao_user');
-    updateProfileView();
-    showToast('카카오 로그아웃 되었습니다.');
   }
 
   /* ── 실시간 시계 ── */
@@ -3365,8 +3151,6 @@
   }
 
   /* ── 초기화 ── */
-  handleKakaoRedirect();
-  loadKakaoUser();
   initIconGrid();
   updatePreview();
   renderUserMissions();
